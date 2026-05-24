@@ -1,0 +1,46 @@
+# skill-forge default config.
+# Override per-project via config/local.yml (gitignored if you want).
+
+# --- Judge rubric -------------------------------------------------------------
+# Each axis scores 0.0 - 1.0. The weighted sum is the total score.
+# Weights must sum to 1.0.
+rubric:
+  weights:
+    schema_compliance: 0.20    # valid frontmatter, expected sections
+    clarity:           0.20    # clear "when to use", no unexplained jargon
+    actionability:    0.25    # an agent can follow this, not just read it
+    gap_coverage:     0.20    # adds something versus existing skills
+    provenance_quality: 0.15  # sources clear, license correct, no gaps
+
+# --- Promotion threshold ------------------------------------------------------
+# Skill is promoted to live when total >= total_min AND every axis >= axis_min.
+promotion:
+  total_min: 0.75
+  axis_min: 0.50
+
+# --- Providers ----------------------------------------------------------------
+# Which provider to use per pipeline stage.
+providers:
+  extract: anthropic    # quality matters here
+  judge:   anthropic    # switch to ollama in change #5 to save cost
+
+anthropic:
+  model: claude-opus-4-7
+  max_tokens: 4096
+
+ollama:
+  host_env: OLLAMA_HOST
+  model: llama3.1
+
+# --- Discovery ----------------------------------------------------------------
+discovery:
+  max_candidates: 10
+  user_agent: "skill-forge/0.1 (+https://github.com/MWest2020/skill-forge)"
+  respect_robots_txt: true
+
+# --- Storage paths (relative to project root) ---------------------------------
+paths:
+  skills: skills
+  drafts: skills/_draft
+  sources: sources
+  runs: runs
