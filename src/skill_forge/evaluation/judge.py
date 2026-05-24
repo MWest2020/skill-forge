@@ -38,6 +38,7 @@ def judge_skill(
             timestamp=datetime.now(UTC),
             skill_slug=slug,
             scores=score,
+            findings=findings,
             promoted=False,
         ),
     )

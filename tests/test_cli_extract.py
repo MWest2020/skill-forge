@@ -9,28 +9,21 @@ import typer
 from typer.testing import CliRunner
 
 from skill_forge.cli import _run_extract, app
-from skill_forge.models import JudgeFinding, JudgeScore, Skill
-from skill_forge.providers.base import DistilledDraft, LLMProvider, LLMProviderError
+from skill_forge.providers.base import DistilledDraft, LLMProviderError
 from skill_forge.storage import filesystem as fs
 from skill_forge.storage.filesystem import free_slug
+
+from .fakes import FakeProvider
 
 runner = CliRunner()
 
 
-def _judge_stub(
-    skill: Skill, *, weights: dict[str, float]
-) -> tuple[JudgeScore, list[JudgeFinding]]:
-    raise NotImplementedError("test fake does not implement judge")
-
-
-class _FakeProvider(LLMProvider):
+class _FakeProvider(FakeProvider):
     def __init__(self, draft: DistilledDraft) -> None:
         self.draft = draft
 
     def extract_draft(self, *, source_url: str, source_text: str) -> DistilledDraft:
         return self.draft
-
-    judge = _judge_stub  # type: ignore[assignment]
 
 
 def _draft(name: str = "smoke-draft") -> DistilledDraft:
@@ -116,11 +109,9 @@ def test_run_extract_fetch_error_exits_1(tmp_path: Path) -> None:
 
 
 def test_run_extract_provider_error_exits_3(tmp_path: Path) -> None:
-    class _Boom(LLMProvider):
+    class _Boom(FakeProvider):
         def extract_draft(self, *, source_url: str, source_text: str) -> DistilledDraft:
             raise LLMProviderError("upstream broken")
-
-        judge = _judge_stub  # type: ignore[assignment]
 
     page = _write_fixture_html(tmp_path)
     with pytest.raises(typer.Exit) as exc:

@@ -41,6 +41,13 @@ identity_app = typer.Typer(
 )
 app.add_typer(identity_app, name="identity")
 
+lineage_app = typer.Typer(
+    name="lineage",
+    help="Manage skill iteration lineage (migrate, verify).",
+    no_args_is_help=True,
+)
+app.add_typer(lineage_app, name="lineage")
+
 RootOpt = Annotated[
     Path | None,
     typer.Option("--root", help="Project root containing the skills/ tree."),
@@ -361,6 +368,185 @@ def demote(
     typer.echo(f"  Reason:     {reason}")
 
 
+@app.command()
+def refine(
+    slug: str,
+    with_source: Annotated[
+        str | None,
+        typer.Option(
+            "--with-source",
+            help="Optional URL or file path with new material to fold in.",
+        ),
+    ] = None,
+    hint: Annotated[
+        str | None,
+        typer.Option("--prompt", help="User-supplied steer for the refinement."),
+    ] = None,
+    root: RootOpt = None,
+) -> None:
+    """Generate a new iteration of a skill from its latest judge findings."""
+    from skill_forge.extraction.fetcher import fetch
+    from skill_forge.refinement import (
+        NoJudgmentToRefineError,
+        PendingIterationExistsError,
+        RefinementError,
+        refine_skill,
+    )
+
+    base = _resolve_root(root)
+    cfg = load_config(base)
+    provider_name = cfg["providers"]["judge"]
+    if provider_name == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
+        typer.echo("ANTHROPIC_API_KEY not set.", err=True)
+        raise typer.Exit(code=2)
+    try:
+        provider = _build_provider(provider_name, cfg)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+
+    extra_text: str | None = None
+    if with_source:
+        try:
+            content = fetch(with_source, follow_next=False)
+            extra_text = "\n\n".join(
+                p.body.decode("utf-8", errors="replace") for p in content.pages
+            )
+        except (FileNotFoundError, OSError, FetchError) as exc:
+            typer.echo(f"--with-source fetch failed: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
+
+    identity = _load_identity(home=None)
+    try:
+        new_version = refine_skill(
+            base, slug,
+            provider=provider, identity=identity,
+            hint=hint, extra_source=extra_text,
+        )
+    except NoJudgmentToRefineError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    except PendingIterationExistsError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    except (RefinementError, FileNotFoundError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    except LLMProviderError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=3) from exc
+
+    typer.echo(f"Refined: {slug} → v{new_version} (pending)")
+    typer.echo(f"  Review with: forge diff {slug}")
+    typer.echo(f"  Accept with: forge refine-accept {slug} --iteration {new_version}")
+    typer.echo(f"  Reject with: forge refine-reject {slug} --iteration {new_version} --reason ...")
+
+
+@app.command(name="refine-accept")
+def refine_accept(
+    slug: str,
+    iteration: Annotated[int, typer.Option("--iteration", help="Iteration version to accept.")],
+    root: RootOpt = None,
+) -> None:
+    """Promote a pending iteration to be the current SKILL.md."""
+    from skill_forge.refinement import RefinementError, accept_iteration
+
+    base = _resolve_root(root)
+    identity = _load_identity(home=None)
+    try:
+        path = accept_iteration(base, slug, version=iteration, identity=identity)
+    except (RefinementError, FileNotFoundError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Accepted: {slug} → v{iteration} is now current")
+    typer.echo(f"  Path: {path.relative_to(base)}")
+
+
+@app.command(name="refine-reject")
+def refine_reject(
+    slug: str,
+    iteration: Annotated[int, typer.Option("--iteration", help="Iteration version to reject.")],
+    reason: Annotated[str, typer.Option("--reason", "-r", help="Why this iteration is rejected.")],
+    root: RootOpt = None,
+) -> None:
+    """Mark a pending iteration as rejected. File stays on disk for audit."""
+    from skill_forge.refinement import RefinementError, reject_iteration
+
+    base = _resolve_root(root)
+    try:
+        reject_iteration(base, slug, version=iteration, reason=reason)
+    except (RefinementError, FileNotFoundError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Rejected: {slug} v{iteration}")
+    typer.echo(f"  Reason: {reason}")
+
+
+@app.command()
+def diff(
+    slug: str,
+    from_version: Annotated[
+        int | None, typer.Option("--from", help="From-version (default: current - 1).")
+    ] = None,
+    to_version: Annotated[
+        int | None, typer.Option("--to", help="To-version (default: current).")
+    ] = None,
+    root: RootOpt = None,
+) -> None:
+    """Show a unified diff between two iterations of a skill."""
+    import difflib
+    import shutil as _shutil
+    import subprocess
+
+    base = _resolve_root(root)
+    draft = not (base / "skills" / slug / "SKILL.md").is_file()
+    try:
+        lineage = storage.read_lineage(base, slug, draft=draft)
+    except FileNotFoundError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    # Default --to to the highest version on disk (covers pending iterations),
+    # not just current_version. Default --from to to_v - 1.
+    highest = max(it.version for it in lineage.iterations)
+    to_v = to_version if to_version is not None else highest
+    from_v = from_version if from_version is not None else to_v - 1
+    if from_v < 1 or to_v < 1 or from_v == to_v:
+        typer.echo(
+            "no prior iteration to diff against (only one version exists)",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        from_path = next(
+            storage.iterations_dir(base, slug, draft=draft).glob(f"v{from_v}-*.md")
+        )
+        to_path = next(
+            storage.iterations_dir(base, slug, draft=draft).glob(f"v{to_v}-*.md")
+        )
+    except (StopIteration, FileNotFoundError) as exc:
+        typer.echo(f"iteration v{from_v} or v{to_v} not found", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if _shutil.which("git"):
+        subprocess.run(
+            ["git", "diff", "--no-index", "--color=always", str(from_path), str(to_path)],
+            check=False,
+        )
+    else:
+        from_lines = from_path.read_text().splitlines(keepends=True)
+        to_lines = to_path.read_text().splitlines(keepends=True)
+        diff_lines = difflib.unified_diff(
+            from_lines, to_lines, fromfile=str(from_path), tofile=str(to_path)
+        )
+        for line in diff_lines:
+            typer.echo(line, nl=False)
+
+
 @app.command(name="ls")
 def list_skills(root: RootOpt = None) -> None:
     """List all skills (live + draft) with their scores."""
@@ -478,6 +664,42 @@ def identity_backfill(
         for msg in failures:
             typer.echo(msg, err=True)
         raise typer.Exit(code=1)
+
+
+@lineage_app.command(name="migrate")
+def lineage_migrate(
+    slug: Annotated[
+        str | None,
+        typer.Option("--slug", help="Migrate only this slug (default: all)."),
+    ] = None,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Print the plan, write nothing.")
+    ] = False,
+    root: RootOpt = None,
+) -> None:
+    """Convert flat skills to the iteration-aware layout (creates lineage.yml + v1)."""
+    from skill_forge.lineage import migrate_all, migrate_one
+
+    base = _resolve_root(root)
+    if slug is not None:
+        for draft in (False, True):
+            if migrate_one(base, slug, draft=draft, dry_run=dry_run):
+                where = "draft" if draft else "live"
+                verb = "would migrate" if dry_run else "migrated"
+                typer.echo(f"{verb}: skills/{('_draft/' if draft else '')}{slug} ({where})")
+                return
+        typer.echo(f"nothing to migrate for {slug!r} (already migrated or not found)")
+        return
+
+    migrated = migrate_all(base, dry_run=dry_run)
+    if not migrated:
+        typer.echo("nothing to migrate (all skills already have lineage.yml)")
+        return
+    verb = "would migrate" if dry_run else "migrated"
+    for s, d in migrated:
+        prefix = "skills/_draft" if d else "skills"
+        typer.echo(f"{verb}: {prefix}/{s}")
+    typer.echo(f"\n{len(migrated)} skill(s) {('would be ' if dry_run else '')}migrated.")
 
 
 if __name__ == "__main__":

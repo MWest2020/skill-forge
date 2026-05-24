@@ -19,11 +19,18 @@ from pydantic import ValidationError
 
 from skill_forge.models import JudgeFinding, JudgeScore, Skill
 
-from ._judge import build_judge_score, parse_findings, serialize_skill_for_judge
+from ._judge import (
+    build_judge_score,
+    parse_findings,
+    serialize_skill_for_judge,
+    serialize_skill_for_refine,
+)
 from ._prompts import (
     EMIT_DRAFT_TOOL,
+    EMIT_REFINEMENT_TOOL,
     EXTRACTION_SYSTEM_PROMPT,
     JUDGE_SYSTEM_PROMPT,
+    REFINEMENT_SYSTEM_PROMPT,
     SCORE_SKILL_TOOL,
 )
 from .base import DistilledDraft, LLMProvider, LLMProviderError
@@ -119,6 +126,48 @@ class AnthropicProvider(LLMProvider):
             if block.type == "tool_use" and block.name == "score_skill":
                 return _parse_score_payload(block.input, weights)
         raise LLMProviderError("model did not emit a score_skill tool call")
+
+
+    def refine(
+        self,
+        skill: Skill,
+        *,
+        findings: list[JudgeFinding],
+        hint: str | None = None,
+        extra_source: str | None = None,
+    ) -> str:
+        tool = cast(ToolParam, EMIT_REFINEMENT_TOOL)
+        tool_choice: ToolChoiceToolParam = {"type": "tool", "name": "emit_refinement"}
+        system_block: TextBlockParam = {
+            "type": "text",
+            "text": REFINEMENT_SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral"},
+        }
+        user_msg: MessageParam = {
+            "role": "user",
+            "content": serialize_skill_for_refine(skill, findings, hint, extra_source),
+        }
+        try:
+            response = self._client.messages.create(
+                model=self._model,
+                max_tokens=self._max_tokens,
+                system=[system_block],
+                tools=[tool],
+                tool_choice=tool_choice,
+                messages=[user_msg],
+            )
+        except anthropic.APIError as exc:
+            raise LLMProviderError(_redact(str(exc))) from exc
+        for block in response.content:
+            if block.type == "tool_use" and block.name == "emit_refinement":
+                payload = block.input
+                if not isinstance(payload, dict) or "body" not in payload:
+                    raise LLMProviderError("emit_refinement payload missing 'body'")
+                body = payload["body"]
+                if not isinstance(body, str) or not body.strip():
+                    raise LLMProviderError("emit_refinement.body must be a non-empty string")
+                return body
+        raise LLMProviderError("model did not emit an emit_refinement tool call")
 
 
 def _parse_score_payload(

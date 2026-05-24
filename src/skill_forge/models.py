@@ -242,6 +242,95 @@ class Run(BaseModel):
 
 JUDGE_SEVERITIES = ("info", "warning", "blocker")
 
+ITERATION_KINDS = ("imported", "extracted", "refined", "accepted")
+ITERATION_STATUSES = ("current", "superseded", "pending", "rejected")
+ITERATION_FILE_RE = re.compile(
+    r"^v(\d+)-(imported|extracted|refined|accepted)-(\d{4}-\d{2}-\d{2})\.md$"
+)
+
+
+class Iteration(BaseModel):
+    """One snapshot of a skill's body, with its place in the lineage."""
+
+    model_config = _STRICT
+    version: int = Field(ge=1)
+    kind: str  # imported | extracted | refined | accepted
+    created: date
+    judge_score: float | None = None
+    status: str  # current | superseded | pending | rejected
+    reject_reason: str | None = None
+
+    @field_validator("kind")
+    @classmethod
+    def _kind_allowed(cls, v: str) -> str:
+        if v not in ITERATION_KINDS:
+            raise ValueError(f"Iteration.kind must be one of {ITERATION_KINDS}, got {v!r}")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def _status_allowed(cls, v: str) -> str:
+        if v not in ITERATION_STATUSES:
+            raise ValueError(
+                f"Iteration.status must be one of {ITERATION_STATUSES}, got {v!r}"
+            )
+        return v
+
+    @field_validator("judge_score")
+    @classmethod
+    def _score_range(cls, v: float | None) -> float | None:
+        return None if v is None else _check_unit(v, "Iteration.judge_score")
+
+    @model_validator(mode="after")
+    def _reject_reason_required(self) -> Iteration:
+        if self.status == "rejected" and not (self.reject_reason and self.reject_reason.strip()):
+            raise ValueError("Iteration.reject_reason is required when status='rejected'")
+        if self.status != "rejected" and self.reject_reason is not None:
+            raise ValueError("Iteration.reject_reason must be None unless status='rejected'")
+        return self
+
+
+class Lineage(BaseModel):
+    """Per-skill iteration index. Lives at `skills/{slug}/lineage.yml`."""
+
+    model_config = _STRICT
+    slug: str
+    current_version: int = Field(ge=1)
+    iterations: list[Iteration]
+
+    @field_validator("slug")
+    @classmethod
+    def _slug(cls, v: str) -> str:
+        if not SLUG_RE.fullmatch(v):
+            raise ValueError(f"Lineage.slug must be slug-shaped, got {v!r}")
+        return v
+
+    @field_validator("iterations")
+    @classmethod
+    def _nonempty(cls, v: list[Iteration]) -> list[Iteration]:
+        if not v:
+            raise ValueError("Lineage.iterations must contain at least one entry")
+        return v
+
+    @model_validator(mode="after")
+    def _coherent(self) -> Lineage:
+        versions = [it.version for it in self.iterations]
+        if versions != sorted(set(versions)):
+            raise ValueError(
+                "Lineage.iterations versions must be strictly monotonic starting at 1"
+            )
+        current = [it for it in self.iterations if it.status == "current"]
+        if len(current) != 1:
+            raise ValueError(
+                f"Lineage must have exactly one 'current' iteration, got {len(current)}"
+            )
+        if current[0].version != self.current_version:
+            raise ValueError(
+                f"Lineage.current_version ({self.current_version}) does not match "
+                f"the version of the 'current' iteration ({current[0].version})"
+            )
+        return self
+
 
 class JudgeFinding(BaseModel):
     """One per-axis observation produced by the judge (especially for lost points)."""
@@ -275,6 +364,7 @@ class RunEvent(BaseModel):
     timestamp: datetime
     skill_slug: str
     scores: JudgeScore | None = None
+    findings: list[JudgeFinding] = Field(default_factory=list)
     promoted: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -288,10 +378,9 @@ class RunEvent(BaseModel):
     @field_validator("event")
     @classmethod
     def _event_allowed(cls, v: str) -> str:
-        if v not in {"imported", "judged", "promoted", "demoted"}:
-            raise ValueError(
-                f"RunEvent.event must be one of imported/judged/promoted/demoted, got {v!r}"
-            )
+        allowed = {"imported", "judged", "promoted", "demoted", "refined"}
+        if v not in allowed:
+            raise ValueError(f"RunEvent.event must be one of {sorted(allowed)}, got {v!r}")
         return v
 
     @field_validator("skill_slug")

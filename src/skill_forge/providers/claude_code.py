@@ -14,7 +14,12 @@ from pydantic import ValidationError
 
 from skill_forge.models import JudgeFinding, JudgeScore, Skill
 
-from ._judge import build_judge_score, parse_findings, serialize_skill_for_judge
+from ._judge import (
+    build_judge_score,
+    parse_findings,
+    serialize_skill_for_judge,
+    serialize_skill_for_refine,
+)
 from .base import DistilledDraft, LLMProvider, LLMProviderError
 
 MAX_SOURCE_CHARS = 180_000
@@ -96,6 +101,26 @@ class ClaudeCodeProvider(LLMProvider):
             raise LLMProviderError("claude did not return parseable JSON for judge")
         return _parse_judge_payload(data, weights)
 
+    def refine(
+        self,
+        skill: Skill,
+        *,
+        findings: list[JudgeFinding],
+        hint: str | None = None,
+        extra_source: str | None = None,
+    ) -> str:
+        prompt = (
+            f"{_REFINE_PROMPT_HEADER}\n\n"
+            f"{serialize_skill_for_refine(skill, findings, hint, extra_source)}\n"
+        )
+        data = self._run_claude(prompt)
+        if data is None:
+            raise LLMProviderError("claude did not return parseable JSON for refine")
+        body = data.get("body")
+        if not isinstance(body, str) or not body.strip():
+            raise LLMProviderError("refine JSON must have a non-empty `body` string")
+        return body
+
     def _run_claude(self, prompt: str) -> dict[str, Any] | None:
         try:
             result = subprocess.run(
@@ -114,6 +139,24 @@ class ClaudeCodeProvider(LLMProvider):
             stderr = (result.stderr or "").strip()[:500]
             raise LLMProviderError(f"`{self._binary} -p` exited {result.returncode}: {stderr}")
         return _extract_json_object(result.stdout)
+
+
+_REFINE_PROMPT_HEADER = """\
+You refine an existing SKILL.md to address specific judge findings.
+
+Output ONLY a single JSON object on stdout. No fences, no prose. Shape:
+
+  {"body": "<refined markdown body, no frontmatter>"}
+
+Rules:
+- Keep the existing section structure (When to use / Procedure / Failure modes)
+  unless a finding explicitly asks you to restructure.
+- Address each finding precisely. Surgical edits, not wholesale rewrites.
+- If `additional source material` is provided, paraphrase relevant material.
+  Never quote verbatim.
+- If `user hint` is provided, treat it as priority over generic improvements.
+- Preserve specific commands, flags, config keys, file paths verbatim.
+"""
 
 
 _JUDGE_PROMPT_HEADER = """\

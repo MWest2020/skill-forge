@@ -13,6 +13,7 @@ Layout (under {root}):
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +25,13 @@ from skill_forge.identity import (
     sign_skill,
     verify_skill,
 )
-from skill_forge.models import Skill, SkillEntry, SourcesFile
+from skill_forge.models import (
+    ITERATION_FILE_RE,
+    Lineage,
+    Skill,
+    SkillEntry,
+    SourcesFile,
+)
 
 
 def list_skills(root: Path) -> list[SkillEntry]:
@@ -159,6 +166,79 @@ def parse_skill_text(text: str, path: Path) -> Skill:
     data: dict[str, Any] = yaml.safe_load(frontmatter) or {}
     data["body"] = body
     return Skill(**data)
+
+
+# --- iteration storage (change #3) -------------------------------------------
+
+
+def iterations_dir(root: Path, slug: str, *, draft: bool) -> Path:
+    base = root / "skills" / "_draft" / slug if draft else root / "skills" / slug
+    return base / "iterations"
+
+
+def write_iteration(
+    root: Path,
+    slug: str,
+    *,
+    body: str,
+    version: int,
+    kind: str,
+    created: date,
+    draft: bool,
+) -> Path:
+    """Write a versioned iteration file. Returns the path."""
+    target_dir = iterations_dir(root, slug, draft=draft)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    name = f"v{version}-{kind}-{created.isoformat()}.md"
+    path = target_dir / name
+    if path.exists():
+        raise FileExistsError(f"iteration already exists at {path}")
+    rendered = body if body.endswith("\n") else body + "\n"
+    path.write_text(rendered, encoding="utf-8")
+    return path
+
+
+def read_iteration(root: Path, slug: str, version: int, *, draft: bool) -> str:
+    """Read the body of iteration `version`. Raises if not found / ambiguous."""
+    candidates = sorted(
+        p for p in iterations_dir(root, slug, draft=draft).glob(f"v{version}-*.md")
+        if ITERATION_FILE_RE.match(p.name)
+    )
+    if not candidates:
+        raise FileNotFoundError(
+            f"no iteration v{version} for skill {slug!r}"
+        )
+    if len(candidates) > 1:
+        raise ValueError(
+            f"multiple iteration files at v{version} for {slug!r}: "
+            f"{[p.name for p in candidates]}"
+        )
+    return candidates[0].read_text(encoding="utf-8")
+
+
+def read_lineage(root: Path, slug: str, *, draft: bool) -> Lineage:
+    path = _lineage_path(root, slug, draft=draft)
+    if not path.is_file():
+        raise FileNotFoundError(f"no lineage.yml for skill {slug!r} at {path}")
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return Lineage(**data)
+
+
+def write_lineage(
+    root: Path, slug: str, lineage: Lineage, *, draft: bool, overwrite: bool = True
+) -> Path:
+    path = _lineage_path(root, slug, draft=draft)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() and not overwrite:
+        raise FileExistsError(f"lineage already exists at {path}")
+    data = lineage.model_dump(mode="json")
+    path.write_text(yaml.safe_dump(data, sort_keys=True), encoding="utf-8")
+    return path
+
+
+def _lineage_path(root: Path, slug: str, *, draft: bool) -> Path:
+    base = root / "skills" / "_draft" / slug if draft else root / "skills" / slug
+    return base / "lineage.yml"
 
 
 # --- internals ----------------------------------------------------------------

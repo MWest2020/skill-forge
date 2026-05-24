@@ -58,3 +58,20 @@ class LLMProvider(ABC):
         client-side from `weights` to avoid model/weight drift, so the returned
         `JudgeScore.total` always matches the weighted sum exactly.
         """
+
+    @abstractmethod
+    def refine(
+        self,
+        skill: Skill,
+        *,
+        findings: list[JudgeFinding],
+        hint: str | None = None,
+        extra_source: str | None = None,
+    ) -> str:
+        """Return a refined markdown body addressing the supplied findings.
+
+        Only the body is produced — slug/description/sources/version are
+        managed by the caller. `hint` is a user-supplied free-form steer,
+        `extra_source` is paraphrasable raw text (HTML or markdown) to fold
+        in.
+        """

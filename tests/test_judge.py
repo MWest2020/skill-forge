@@ -19,8 +19,9 @@ from skill_forge.models import (
     SourceRef,
     SourcesFile,
 )
-from skill_forge.providers.base import DistilledDraft, LLMProvider
 from skill_forge.storage import filesystem as fs
+
+from .fakes import FakeProvider
 
 _SEED = b"\x33" * 32
 _WEIGHTS = {
@@ -32,7 +33,7 @@ _WEIGHTS = {
 }
 
 
-class _FakeJudgeProvider(LLMProvider):
+class _FakeJudgeProvider(FakeProvider):
     def __init__(
         self,
         axes: dict[str, float] | None = None,
@@ -40,9 +41,6 @@ class _FakeJudgeProvider(LLMProvider):
     ) -> None:
         self.axes = axes or {axis: 0.8 for axis in JUDGE_AXES}
         self.findings = findings or []
-
-    def extract_draft(self, *, source_url: str, source_text: str) -> DistilledDraft:
-        raise NotImplementedError("not used")
 
     def judge(
         self, skill: Skill, *, weights: dict[str, float]

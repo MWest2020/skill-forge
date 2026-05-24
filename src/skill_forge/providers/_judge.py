@@ -23,6 +23,34 @@ def parse_findings(raw: list[dict[str, str]]) -> list[JudgeFinding]:
     return [JudgeFinding(**item) for item in raw]
 
 
+def serialize_skill_for_refine(
+    skill: Skill,
+    findings: list[JudgeFinding],
+    hint: str | None,
+    extra_source: str | None,
+) -> str:
+    """Render the skill + findings + optional inputs for the refinement prompt."""
+    findings_block = (
+        "\n".join(
+            f"- [{f.severity}] {f.axis}: {f.observation}" for f in findings
+        )
+        if findings
+        else "(no findings — refine to improve overall quality)"
+    )
+    parts = [
+        "## current SKILL.md body",
+        skill.body.rstrip("\n"),
+        "",
+        "## judge findings to address",
+        findings_block,
+    ]
+    if hint:
+        parts += ["", "## user hint", hint]
+    if extra_source:
+        parts += ["", "## additional source material", extra_source]
+    return "\n".join(parts)
+
+
 def serialize_skill_for_judge(skill: Skill) -> str:
     """Render the skill for the judge prompt — frontmatter-as-summary + body.
 

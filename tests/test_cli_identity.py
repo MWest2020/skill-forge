@@ -147,21 +147,17 @@ def test_extract_threads_identity_through(tmp_path: Path, monkeypatch: pytest.Mo
 
     # Patch the ClaudeCodeProvider as imported into the CLI module.
     from skill_forge import cli as cli_mod
-    from skill_forge.models import JudgeFinding, JudgeScore
-    from skill_forge.providers.base import DistilledDraft, LLMProvider
+    from skill_forge.providers.base import DistilledDraft
 
-    class _Fake(LLMProvider):
+    from .fakes import FakeProvider
+
+    class _Fake(FakeProvider):
         def extract_draft(self, *, source_url: str, source_text: str) -> DistilledDraft:
             return DistilledDraft(
                 name="smoke-stamp",
                 description="Use this skill when X.",
                 body="## When to use\n...\n## Procedure\n...\n## Failure modes\n...\n",
             )
-
-        def judge(
-            self, skill: Skill, *, weights: dict[str, float]
-        ) -> tuple[JudgeScore, list[JudgeFinding]]:
-            raise NotImplementedError("test fake does not implement judge")
 
     monkeypatch.setattr(cli_mod, "ClaudeCodeProvider", lambda **_: _Fake())
     monkeypatch.setenv("SKILL_FORGE_HOME", str(home))

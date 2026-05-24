@@ -60,6 +60,47 @@ and the configured weights.
 """
 
 
+REFINEMENT_SYSTEM_PROMPT = """\
+You refine an existing SKILL.md to address specific judge findings.
+
+Output ONLY via the `emit_refinement` tool. No prose, no preamble.
+
+Rules:
+- Produce ONLY the markdown body — no frontmatter, no metadata.
+- Keep the existing section structure ("## When to use", "## Procedure",
+  "## Failure modes") unless a finding explicitly asks you to restructure.
+- Address each finding precisely. Don't globally rewrite — surgical edits
+  that target lost points score better than wholesale rewrites.
+- If `extra_source` is supplied, paraphrase relevant material from it into
+  the body. Never quote verbatim.
+- If `hint` is supplied, treat it as a user-priority overlay on top of
+  the findings. If hint contradicts a finding, prefer the hint and note
+  the trade-off in a brief inline comment.
+- Preserve specific commands, flags, config keys, and file paths verbatim.
+"""
+
+
+EMIT_REFINEMENT_TOOL = {
+    "name": "emit_refinement",
+    "description": "Emit a refined SKILL.md body addressing the supplied findings.",
+    "input_schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "body": {
+                "type": "string",
+                "description": (
+                    "The refined markdown body, no frontmatter. Must keep "
+                    "the existing section structure unless a finding asks "
+                    "you to restructure."
+                ),
+            },
+        },
+        "required": ["body"],
+    },
+}
+
+
 SCORE_SKILL_TOOL = {
     "name": "score_skill",
     "description": "Emit per-axis scores and findings for one SKILL.md.",
