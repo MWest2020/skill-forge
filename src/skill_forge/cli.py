@@ -13,25 +13,54 @@ from rich.table import Table
 from skill_forge.config import load as load_config
 from skill_forge.extraction import distiller
 from skill_forge.extraction.fetcher import DEFAULT_MAX_PAGES, FetchError, fetch
+from skill_forge.identity import Identity, get_or_create
+from skill_forge.models import Skill
 from skill_forge.providers.anthropic import AnthropicProvider
 from skill_forge.providers.base import LLMProvider, LLMProviderError
 from skill_forge.providers.claude_code import ClaudeCodeProvider
 from skill_forge.storage import filesystem as storage
+from skill_forge.storage.filesystem import _read_skill_file
+
+DEFAULT_HOME = Path.home() / ".config" / "skill-forge"
 
 app = typer.Typer(
     name="forge",
     help="Distill sources into reusable SKILL.md files.",
     no_args_is_help=True,
 )
+identity_app = typer.Typer(
+    name="identity",
+    help="Manage this instance's keypair and signature backfill.",
+    no_args_is_help=True,
+)
+app.add_typer(identity_app, name="identity")
 
 RootOpt = Annotated[
     Path | None,
     typer.Option("--root", help="Project root containing the skills/ tree."),
 ]
+HomeOpt = Annotated[
+    Path | None,
+    typer.Option(
+        "--home",
+        help="Override identity home (default: $SKILL_FORGE_HOME or ~/.config/skill-forge).",
+    ),
+]
 
 
 def _resolve_root(root: Path | None) -> Path:
     return root if root is not None else Path.cwd()
+
+
+def _resolve_home(home: Path | None) -> Path:
+    if home is not None:
+        return home
+    env = os.environ.get("SKILL_FORGE_HOME")
+    return Path(env) if env else DEFAULT_HOME
+
+
+def _load_identity(home: Path | None) -> Identity:
+    return get_or_create(_resolve_home(home))
 
 
 @app.command()
@@ -69,12 +98,14 @@ def extract(
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=2) from exc
+    identity = _load_identity(home=None)
     _run_extract(
         source_url,
         root=base,
         follow_next=follow_all,
         max_pages=max_pages,
         provider=provider,
+        identity=identity,
     )
 
 
@@ -103,6 +134,7 @@ def _run_extract(
     follow_next: bool,
     max_pages: int,
     provider: LLMProvider,
+    identity: Identity | None = None,
 ) -> None:
     """Shared extract logic (testable without going through typer)."""
     try:
@@ -124,7 +156,7 @@ def _run_extract(
     if slug != skill.name:
         skill = skill.model_copy(update={"name": slug})
 
-    draft_path = storage.write_skill(root, skill, draft=True)
+    draft_path = storage.write_skill(root, skill, draft=True, identity=identity)
     from skill_forge.models import SourcesFile
 
     sources_file = SourcesFile(slug=slug, sources=sources, runs=[])
@@ -222,6 +254,82 @@ def show(slug: str, root: RootOpt = None) -> None:
     else:
         typer.echo("[no provenance file]")
     typer.echo("---")
+
+
+@identity_app.command(name="show")
+def identity_show(home: HomeOpt = None) -> None:
+    """Print this instance's ID, public key, and private-key location."""
+    from cryptography.hazmat.primitives import serialization
+
+    base = _resolve_home(home)
+    priv_path = base / "identity" / "private_key.pem"
+    just_generated = not priv_path.is_file()
+    try:
+        identity = get_or_create(base)
+    except OSError as exc:
+        typer.echo(f"cannot read or create identity at {base}: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if just_generated:
+        typer.echo("Generated new identity. Back up the private key now.")
+    pub_pem = identity.public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
+    typer.echo(f"Instance ID: {identity.instance_id}")
+    typer.echo("Public key:")
+    typer.echo(pub_pem.rstrip())
+    typer.echo(f"Private key: {priv_path}")
+    typer.echo("             (mode 0600 — back this file up; losing it breaks signing)")
+
+
+@identity_app.command(name="backfill")
+def identity_backfill(
+    root: RootOpt = None,
+    home: HomeOpt = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Print the plan, write nothing."),
+    ] = False,
+) -> None:
+    """Stamp origin + signature on existing skills that lack them."""
+    base = _resolve_root(root)
+    identity = _load_identity(home)
+
+    failures: list[str] = []
+    for skill_md in sorted(base.glob("skills/**/SKILL.md")):
+        try:
+            skill: Skill = _read_skill_file(skill_md)
+        except (ValueError, OSError) as exc:
+            failures.append(f"failed to parse {skill_md}: {exc}")
+            continue
+        if skill.origin is not None and not skill.origin.startswith(
+            f"{identity.instance_id}:"
+        ):
+            typer.echo(f"skipped: {skill_md.relative_to(base)}  foreign origin")
+            continue
+        if skill.origin is not None and skill.signature is not None:
+            typer.echo(f"skipped: {skill_md.relative_to(base)}  already signed")
+            continue
+        if dry_run:
+            typer.echo(f"would stamp: {skill_md.relative_to(base)}")
+            continue
+        is_draft = "/_draft/" in skill_md.as_posix()
+        try:
+            storage.write_skill(
+                base, skill, draft=is_draft, identity=identity, overwrite=True
+            )
+        except (ValueError, OSError) as exc:
+            failures.append(f"failed to stamp {skill_md}: {exc}")
+            continue
+        typer.echo(
+            f"stamped: {skill_md.relative_to(base)}  "
+            f"origin={identity.instance_id}:{skill.name}:{skill.version}"
+        )
+    if failures:
+        for msg in failures:
+            typer.echo(msg, err=True)
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

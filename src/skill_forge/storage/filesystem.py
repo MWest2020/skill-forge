@@ -1,6 +1,8 @@
 """Filesystem-backed storage adapter.
 
-Specs: openspec/changes/add-core-models-and-storage/specs/storage/spec.md
+Specs:
+- openspec/changes/add-core-models-and-storage/specs/storage/spec.md
+- openspec/changes/add-instance-identity/specs/skill-frontmatter/spec.md
 
 Layout (under {root}):
     skills/{slug}/SKILL.md          live, promoted
@@ -16,6 +18,12 @@ from typing import Any
 
 import yaml
 
+from skill_forge.identity import (
+    Identity,
+    SignatureMismatchError,
+    sign_skill,
+    verify_skill,
+)
 from skill_forge.models import Skill, SkillEntry, SourcesFile
 
 
@@ -28,13 +36,26 @@ def list_skills(root: Path) -> list[SkillEntry]:
     return live + drafts
 
 
-def read_skill(root: Path, slug: str) -> Skill:
-    """Return the Skill for `slug`, preferring live over draft."""
+def read_skill(root: Path, slug: str, *, identity: Identity | None = None) -> Skill:
+    """Return the Skill for `slug`, preferring live over draft.
+
+    If `identity` is supplied AND the loaded skill carries a signature whose
+    origin starts with that identity's instance_id, the signature is verified.
+    Mismatches raise `SignatureMismatchError`. Foreign-origin signatures are
+    not verified here (federation lands the public-key lookup mechanism).
+    """
     live = root / "skills" / slug / "SKILL.md"
     draft = root / "skills" / "_draft" / slug / "SKILL.md"
     for path in (live, draft):
         if path.is_file():
-            return _read_skill_file(path)
+            skill = _read_skill_file(path)
+            if identity is not None and _is_our_signature(skill, identity):
+                if not verify_skill(skill, identity):
+                    raise SignatureMismatchError(
+                        f"signature mismatch for {slug!r} at {path} "
+                        f"(origin={skill.origin})"
+                    )
+            return skill
     raise FileNotFoundError(f"Skill {slug!r} not found. Checked: {live}, {draft}")
 
 
@@ -47,13 +68,27 @@ def read_sources(root: Path, slug: str) -> SourcesFile:
     return SourcesFile(**data)
 
 
-def write_skill(root: Path, skill: Skill, *, draft: bool, overwrite: bool = False) -> Path:
-    """Write a SKILL.md for `skill`. Returns the path written."""
+def write_skill(
+    root: Path,
+    skill: Skill,
+    *,
+    draft: bool,
+    identity: Identity | None = None,
+    overwrite: bool = False,
+) -> Path:
+    """Write a SKILL.md for `skill`. Returns the path written.
+
+    When `identity` is supplied, missing `origin` and `signature` fields are
+    stamped before writing. Skills with both fields already set are written
+    as-is (preserves imported / foreign origins).
+    """
     base = root / "skills" / "_draft" / skill.name if draft else root / "skills" / skill.name
     base.mkdir(parents=True, exist_ok=True)
     target = base / "SKILL.md"
     if target.exists() and not overwrite:
         raise FileExistsError(f"Skill {skill.name!r} already exists at {target}")
+    if identity is not None:
+        skill = _stamp(skill, identity)
     target.write_text(_render_skill(skill), encoding="utf-8")
     return target
 
@@ -77,6 +112,28 @@ def runs_path(root: Path, run_id: str) -> Path:
 
 
 # --- internals ----------------------------------------------------------------
+
+
+def _stamp(skill: Skill, identity: Identity) -> Skill:
+    """Fill missing `origin` and `signature` for our own skills.
+
+    Foreign-origin skills (origin set but not ours) are returned unchanged.
+    """
+    if skill.origin is None:
+        skill = skill.model_copy(
+            update={"origin": f"{identity.instance_id}:{skill.name}:{skill.version}"}
+        )
+    elif not skill.origin.startswith(f"{identity.instance_id}:"):
+        return skill  # foreign origin — never re-sign on their behalf
+    if skill.signature is None:
+        skill = skill.model_copy(update={"signature": sign_skill(skill, identity)})
+    return skill
+
+
+def _is_our_signature(skill: Skill, identity: Identity) -> bool:
+    if skill.signature is None or skill.origin is None:
+        return False
+    return skill.origin.startswith(f"{identity.instance_id}:")
 
 
 def _scan(directory: Path, *, draft: bool) -> list[SkillEntry]:
@@ -133,9 +190,13 @@ def _find_closing(lines: list[str], start: int) -> int | None:
 
 
 def _render_skill(skill: Skill) -> str:
-    """Inverse of _split_frontmatter — frontmatter YAML + body."""
+    """Inverse of _split_frontmatter — frontmatter YAML + body.
+
+    Frontmatter is dumped with `sort_keys=True` so the canonical payload that
+    signatures cover is reproducible across writes.
+    """
     fm_data = skill.model_dump(mode="json", exclude={"body"})
-    fm_yaml = yaml.safe_dump(fm_data, sort_keys=False)
+    fm_yaml = yaml.safe_dump(fm_data, sort_keys=True, default_flow_style=False)
     body = skill.body
     if not body.endswith("\n"):
         body += "\n"

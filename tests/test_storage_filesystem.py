@@ -7,8 +7,11 @@ from pathlib import Path
 
 import pytest
 
+from skill_forge.identity import SignatureMismatchError, from_seed
 from skill_forge.models import Skill, Source, SourceRef, SourcesFile
 from skill_forge.storage import filesystem as fs
+
+_SEED = b"\x07" * 32
 
 
 def _skill(name: str = "demo-skill", judge_score: float | None = 0.87) -> Skill:
@@ -168,3 +171,65 @@ def test_write_sources_refuses_overwrite(tmp_path: Path) -> None:
 def test_runs_path_shape(tmp_path: Path) -> None:
     p = fs.runs_path(tmp_path, "run-2026-05-24-001")
     assert p == tmp_path / "runs" / "run-2026-05-24-001.jsonl"
+
+
+# --- identity hooks -----------------------------------------------------------
+
+
+def test_write_skill_stamps_origin_and_signature_when_identity_supplied(
+    tmp_path: Path,
+) -> None:
+    identity = from_seed(tmp_path / "id", _SEED)
+    fs.write_skill(tmp_path, _skill(), draft=True, identity=identity)
+    loaded = fs.read_skill(tmp_path, "demo-skill", identity=identity)
+    assert loaded.origin == f"{identity.instance_id}:demo-skill:1"
+    assert loaded.signature is not None
+
+
+def test_write_skill_without_identity_leaves_fields_none(tmp_path: Path) -> None:
+    fs.write_skill(tmp_path, _skill(), draft=True)
+    loaded = fs.read_skill(tmp_path, "demo-skill")
+    assert loaded.origin is None
+    assert loaded.signature is None
+
+
+def test_read_skill_rejects_tampered_body(tmp_path: Path) -> None:
+    identity = from_seed(tmp_path / "id", _SEED)
+    fs.write_skill(tmp_path, _skill(), draft=True, identity=identity)
+    path = tmp_path / "skills" / "_draft" / "demo-skill" / "SKILL.md"
+    path.write_text(path.read_text(encoding="utf-8") + "tampered\n", encoding="utf-8")
+    with pytest.raises(SignatureMismatchError):
+        fs.read_skill(tmp_path, "demo-skill", identity=identity)
+
+
+def test_read_skill_skips_verify_for_foreign_origin(tmp_path: Path) -> None:
+    identity_a = from_seed(tmp_path / "a", _SEED)
+    identity_b = from_seed(tmp_path / "b", b"\x08" * 32)
+    fs.write_skill(tmp_path, _skill(), draft=True, identity=identity_a)
+    # Reading with identity_b — origin is foreign, verify is skipped, no error.
+    loaded = fs.read_skill(tmp_path, "demo-skill", identity=identity_b)
+    assert loaded.origin is not None
+    assert loaded.origin.startswith(identity_a.instance_id)
+
+
+def test_write_skill_preserves_existing_signature(tmp_path: Path) -> None:
+    identity = from_seed(tmp_path / "id", _SEED)
+    pre_stamped = _skill().model_copy(
+        update={
+            "origin": f"{identity.instance_id}:demo-skill:1",
+            "signature": "Y2FjaGVk",  # base64("cached") — placeholder
+        }
+    )
+    # Make it through validation by using a real signature; sign it ourselves.
+    from skill_forge.identity import sign_skill
+
+    real_sig = sign_skill(
+        _skill().model_copy(
+            update={"origin": f"{identity.instance_id}:demo-skill:1"}
+        ),
+        identity,
+    )
+    pre_stamped = pre_stamped.model_copy(update={"signature": real_sig})
+    fs.write_skill(tmp_path, pre_stamped, draft=True, identity=identity)
+    loaded = fs.read_skill(tmp_path, "demo-skill", identity=identity)
+    assert loaded.signature == real_sig

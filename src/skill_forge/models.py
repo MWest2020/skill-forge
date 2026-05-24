@@ -16,6 +16,8 @@ SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 SOURCE_ID_RE = re.compile(r"^src-[a-f0-9]{6}$")
 SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
 RUN_ID_RE = re.compile(r"^run-\d{4}-\d{2}-\d{2}-\d{3}$")
+ORIGIN_RE = re.compile(r"^forge-[a-f0-9]{8}:[a-z0-9][a-z0-9-]*:\d+$")
+SIGNATURE_B64_RE = re.compile(r"^[A-Za-z0-9+/]+={0,2}$")
 
 JUDGE_AXES = (
     "schema_compliance",
@@ -59,6 +61,8 @@ class Skill(BaseModel):
     judge_score: float | None = None
     created: date
     body: str
+    origin: str | None = None
+    signature: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -78,6 +82,36 @@ class Skill(BaseModel):
     @classmethod
     def _score_range(cls, v: float | None) -> float | None:
         return None if v is None else _check_unit(v, "Skill.judge_score")
+
+    @field_validator("origin")
+    @classmethod
+    def _origin_shape(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if not ORIGIN_RE.fullmatch(v):
+            raise ValueError(
+                f"Skill.origin must match '<instance_id>:<slug>:<version>', got {v!r}"
+            )
+        return v
+
+    @field_validator("signature")
+    @classmethod
+    def _signature_shape(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if not SIGNATURE_B64_RE.fullmatch(v):
+            raise ValueError("Skill.signature must be base64-encoded ASCII")
+        return v
+
+    @field_validator("body")
+    @classmethod
+    def _body_trailing_newline(cls, v: str) -> str:
+        # Why: storage writes body with a trailing newline. Signatures cover the
+        # body's sha256, so the body we sign must equal the body we read back.
+        # Normalizing here makes that round-trip stable.
+        if v and not v.endswith("\n"):
+            return v + "\n"
+        return v
 
 
 class Source(BaseModel):
