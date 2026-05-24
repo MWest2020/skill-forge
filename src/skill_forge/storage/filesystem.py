@@ -153,6 +153,14 @@ def read_skill_file(path: Path) -> Skill:
     return _read_skill_file(path)
 
 
+def parse_skill_text(text: str, path: Path) -> Skill:
+    """Parse a SKILL.md from an in-memory string (no second disk read)."""
+    frontmatter, body = _split_frontmatter(text, path)
+    data: dict[str, Any] = yaml.safe_load(frontmatter) or {}
+    data["body"] = body
+    return Skill(**data)
+
+
 # --- internals ----------------------------------------------------------------
 
 
@@ -188,10 +196,13 @@ def _scan(directory: Path, *, draft: bool) -> list[SkillEntry]:
             continue
         try:
             skill = _read_skill_file(skill_md)
-        except (ValueError, OSError):
+        except (ValueError, OSError, yaml.YAMLError):
             continue
         # Prefer the latest RunSummary score over the legacy Skill.judge_score.
-        score = _latest_run_score(root, child.name) or skill.judge_score
+        # Why `is not None`: a legit judge score of exactly 0.0 is falsy and
+        # would otherwise fall through to the (also-falsy) legacy field.
+        from_runs = _latest_run_score(root, child.name)
+        score = from_runs if from_runs is not None else skill.judge_score
         entries.append(SkillEntry(slug=child.name, draft=draft, judge_score=score))
     return entries
 
@@ -203,7 +214,7 @@ def _latest_run_score(root: Path, slug: str) -> float | None:
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         sources = SourcesFile(**data)
-    except (ValueError, OSError):
+    except (ValueError, OSError, yaml.YAMLError):
         return None
     if not sources.runs:
         return None

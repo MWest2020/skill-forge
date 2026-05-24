@@ -5,13 +5,16 @@ Spec: openspec/changes/add-import-and-judge/specs/promote-demote/spec.md
 
 from __future__ import annotations
 
+import json
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from skill_forge.audit import append_run_event, next_run_id
 from skill_forge.identity import Identity
-from skill_forge.models import RunEvent
+from skill_forge.models import JUDGE_AXES, JudgeScore, RunEvent
 from skill_forge.storage import filesystem as storage
 
 
@@ -133,10 +136,42 @@ def _check_threshold(root: Path, slug: str, promotion: dict[str, float]) -> None
             f"latest total {latest.judge_score:.2f} < threshold {total_min:.2f}; "
             "rejudge or pass --force"
         )
-    # Per-axis check requires the full JudgeScore — re-read from runs/*.jsonl
-    # by run_id. For now, we only enforce the total. The axis check is also
-    # in the spec; implementing it requires storing per-axis scores in
-    # RunSummary, which is a follow-up. The judge prompt already discourages
-    # uneven scores via the rubric explanation, and the user sees per-axis
-    # output from `forge judge`.
-    _ = axis_min  # documented limitation; future change broadens RunSummary
+    # Per-axis check: RunSummary only carries `total`, but the full JudgeScore
+    # is in the JSONL audit. Walk it newest-first to find the matching
+    # "judged" event.
+    judged = _latest_judge_score(root, slug)
+    if judged is not None:
+        for axis in JUDGE_AXES:
+            value = getattr(judged, axis)
+            if value < axis_min:
+                raise BelowThresholdError(
+                    f"axis {axis} = {value:.2f} < threshold {axis_min:.2f}; "
+                    "rejudge or pass --force"
+                )
+
+
+def _latest_judge_score(root: Path, slug: str) -> JudgeScore | None:
+    """Walk runs/*.jsonl newest-first; return scores of the latest judged event."""
+    runs_dir = root / "runs"
+    if not runs_dir.is_dir():
+        return None
+    for path in sorted(runs_dir.glob("*.jsonl"), reverse=True):
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in reversed(lines):
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if data.get("event") != "judged" or data.get("skill_slug") != slug:
+                continue
+            scores = data.get("scores")
+            if not scores:
+                continue
+            try:
+                return JudgeScore.model_validate(scores)
+            except ValidationError:
+                continue
+    return None

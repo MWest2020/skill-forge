@@ -45,10 +45,15 @@ def import_file(
     """Import one SKILL.md file into `{root}/skills/_draft/{slug}/`."""
     if not path.is_file():
         raise SkillImportError(path, "file not found")
+    # Read once, parse from memory — avoids a TOCTOU window where the file
+    # bytes (which we sha256) drift from the bytes we parsed.
     try:
         raw = path.read_bytes()
-        parsed = storage.read_skill_file(path)
-    except (ValueError, OSError, ValidationError) as exc:
+    except OSError as exc:
+        raise SkillImportError(path, str(exc)) from exc
+    try:
+        parsed = storage.parse_skill_text(raw.decode("utf-8", errors="replace"), path)
+    except (ValueError, ValidationError) as exc:
         raise SkillImportError(path, str(exc)) from exc
 
     sha256 = hashlib.sha256(raw).hexdigest()

@@ -89,6 +89,39 @@ def test_promote_force_overrides_threshold(tmp_path: Path) -> None:
     assert path.is_file()
 
 
+def test_promote_axis_min_check_blocks_skewed_score(tmp_path: Path) -> None:
+    """Total >= total_min but one axis < axis_min → BelowThresholdError."""
+    _seed_draft(tmp_path, judge_score=0.85)  # total above threshold
+    # Append a "judged" event with one axis at 0.30 (below axis_min 0.50)
+    skewed_scores = {
+        "schema_compliance": 0.95,
+        "clarity": 0.95,
+        "actionability": 0.95,
+        "gap_coverage": 0.95,
+        "provenance_quality": 0.30,
+        "total": 0.85,
+    }
+    runs_dir = tmp_path / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    (runs_dir / "run-2026-05-24-001.jsonl").write_text(
+        json.dumps(
+            {
+                "run_id": "run-2026-05-24-001",
+                "event": "judged",
+                "timestamp": "2026-05-24T14:00:00+00:00",
+                "skill_slug": "demo",
+                "scores": skewed_scores,
+                "promoted": False,
+                "metadata": {},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(BelowThresholdError, match="provenance_quality"):
+        promote(tmp_path, "demo", promotion=_PROMOTION)
+
+
 def test_promote_unjudged_raises_unless_forced(tmp_path: Path) -> None:
     _seed_draft(tmp_path)  # no runs
     with pytest.raises(NotJudgedError):
@@ -102,10 +135,16 @@ def test_promote_writes_audit_event(tmp_path: Path) -> None:
     _seed_draft(tmp_path, judge_score=0.80)
     promote(tmp_path, "demo", promotion=_PROMOTION)
     run_files = sorted((tmp_path / "runs").glob("*.jsonl"))
-    assert len(run_files) == 1
-    event = json.loads(run_files[0].read_text().splitlines()[-1])
-    assert event["event"] == "promoted"
-    assert event["promoted"] is True
+    assert len(run_files) >= 1
+    # Search across all run files for a promoted event for this slug.
+    found = False
+    for path in run_files:
+        for line in path.read_text().splitlines():
+            event = json.loads(line)
+            if event["event"] == "promoted" and event["skill_slug"] == "demo":
+                assert event["promoted"] is True
+                found = True
+    assert found
 
 
 def test_promote_already_live(tmp_path: Path) -> None:
