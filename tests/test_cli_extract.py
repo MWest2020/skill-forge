@@ -124,15 +124,49 @@ def test_run_extract_provider_error_exits_3(tmp_path: Path) -> None:
     assert exc.value.exit_code == 3
 
 
-def test_extract_cli_missing_api_key_exits_2(
+def _write_config(tmp_path: Path, provider: str) -> None:
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir(parents=True, exist_ok=True)
+    (cfg_dir / "default.yml").write_text(
+        f"providers:\n  extract: {provider}\n", encoding="utf-8"
+    )
+
+
+def test_extract_cli_missing_api_key_exits_2_when_anthropic_selected(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _write_config(tmp_path, "anthropic")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     result = runner.invoke(
         app, ["extract", "file:///nonexistent", "--root", str(tmp_path)]
     )
     assert result.exit_code == 2
     assert "ANTHROPIC_API_KEY" in (result.stderr or result.output)
+
+
+def test_extract_cli_skips_api_key_guard_for_claude_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_config(tmp_path, "claude_code")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    result = runner.invoke(
+        app, ["extract", "file:///nonexistent", "--root", str(tmp_path)]
+    )
+    # Should NOT exit 2 — should reach the fetcher and exit 1 on missing file.
+    assert result.exit_code == 1
+    assert "ANTHROPIC_API_KEY" not in (result.stderr or result.output)
+
+
+def test_extract_cli_unknown_provider_exits_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_config(tmp_path, "magic-mystery-llm")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")  # so we pass the guard
+    result = runner.invoke(
+        app, ["extract", "file:///nonexistent", "--root", str(tmp_path)]
+    )
+    assert result.exit_code == 2
+    assert "unknown provider" in (result.stderr or result.output)
 
 
 def test_free_slug_finds_first_open_suffix(tmp_path: Path) -> None:

@@ -10,10 +10,12 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from skill_forge.config import load as load_config
 from skill_forge.extraction import distiller
 from skill_forge.extraction.fetcher import DEFAULT_MAX_PAGES, FetchError, fetch
 from skill_forge.providers.anthropic import AnthropicProvider
 from skill_forge.providers.base import LLMProvider, LLMProviderError
+from skill_forge.providers.claude_code import ClaudeCodeProvider
 from skill_forge.storage import filesystem as storage
 
 app = typer.Typer(
@@ -53,19 +55,45 @@ def extract(
 ) -> None:
     """Fetch a source and distill it into a draft SKILL.md."""
     base = _resolve_root(root)
-    if not os.getenv("ANTHROPIC_API_KEY"):
+    cfg = load_config(base)
+    provider_name = cfg["providers"]["extract"]
+    if provider_name == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
         typer.echo(
-            "ANTHROPIC_API_KEY not set. Add it to .env or export it before running.",
+            "ANTHROPIC_API_KEY not set. Add it to .env or export it, "
+            "or switch `providers.extract` to 'claude_code' in config/default.yml.",
             err=True,
         )
         raise typer.Exit(code=2)
+    try:
+        provider = _build_provider(provider_name, cfg)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
     _run_extract(
         source_url,
         root=base,
         follow_next=follow_all,
         max_pages=max_pages,
-        provider=AnthropicProvider(),
+        provider=provider,
     )
+
+
+def _build_provider(name: str, cfg: dict[str, object]) -> LLMProvider:
+    if name == "anthropic":
+        anth = cfg.get("anthropic", {}) or {}
+        assert isinstance(anth, dict)
+        return AnthropicProvider(
+            model=str(anth.get("model", "claude-opus-4-7")),
+            max_tokens=int(anth.get("max_tokens", 4096)),
+        )
+    if name == "claude_code":
+        cc = cfg.get("claude_code", {}) or {}
+        assert isinstance(cc, dict)
+        return ClaudeCodeProvider(
+            binary=str(cc.get("binary", "claude")),
+            timeout=float(cc.get("timeout_s", 120)),
+        )
+    raise ValueError(f"unknown provider: {name!r} (expected 'anthropic' or 'claude_code')")
 
 
 def _run_extract(

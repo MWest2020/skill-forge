@@ -20,13 +20,20 @@ promotion:
 
 # --- Providers ----------------------------------------------------------------
 # Which provider to use per pipeline stage.
+# Options: claude_code (uses your Claude Code subscription via `claude -p`),
+#          anthropic   (uses ANTHROPIC_API_KEY, pay-per-token, supports forced tool_use),
+#          ollama      (local LLM, change #5).
 providers:
-  extract: anthropic    # quality matters here
-  judge:   anthropic    # switch to ollama in change #5 to save cost
+  extract: claude_code
+  judge:   claude_code
 
 anthropic:
   model: claude-opus-4-7
   max_tokens: 4096
+
+claude_code:
+  binary: claude
+  timeout_s: 120
 
 ollama:
   host_env: OLLAMA_HOST
