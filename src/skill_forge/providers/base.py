@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from skill_forge.models import SLUG_RE
+from skill_forge.models import SLUG_RE, JudgeFinding, JudgeScore, Skill
 
 
 class DistilledDraft(BaseModel):
@@ -42,8 +42,19 @@ class LLMProviderError(Exception):
 
 
 class LLMProvider(ABC):
-    """Minimal interface — providers turn raw source text into a draft."""
+    """Minimal interface — providers turn raw source text into a draft, and judge."""
 
     @abstractmethod
     def extract_draft(self, *, source_url: str, source_text: str) -> DistilledDraft:
         """Return a draft for the given source. Raises LLMProviderError on failure."""
+
+    @abstractmethod
+    def judge(
+        self, skill: Skill, *, weights: dict[str, float]
+    ) -> tuple[JudgeScore, list[JudgeFinding]]:
+        """Score `skill` against the rubric. Findings explain lost points.
+
+        The provider returns per-axis floats and findings; total is computed
+        client-side from `weights` to avoid model/weight drift, so the returned
+        `JudgeScore.total` always matches the weighted sum exactly.
+        """

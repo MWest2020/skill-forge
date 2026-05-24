@@ -9,7 +9,14 @@ import pytest
 
 from skill_forge.extraction.distiller import UNKNOWN_LICENSE, distill
 from skill_forge.extraction.fetcher import FetchedContent, Page
+from skill_forge.models import JudgeFinding, JudgeScore, Skill
 from skill_forge.providers.base import DistilledDraft, LLMProvider
+
+
+def _judge_stub(
+    skill: Skill, *, weights: dict[str, float]
+) -> tuple[JudgeScore, list[JudgeFinding]]:
+    raise NotImplementedError("test fake does not implement judge")
 
 
 class _FakeProvider(LLMProvider):
@@ -20,6 +27,8 @@ class _FakeProvider(LLMProvider):
     def extract_draft(self, *, source_url: str, source_text: str) -> DistilledDraft:
         self.calls.append((source_url, source_text))
         return self.draft
+
+    judge = _judge_stub  # type: ignore[assignment]
 
 
 def _page(url: str, body: bytes) -> Page:
@@ -45,9 +54,7 @@ def test_distill_single_page() -> None:
     content = FetchedContent(pages=(page,))
     provider = _FakeProvider(_draft())
 
-    skill, sources = distill(
-        content, provider=provider, now=datetime(2026, 5, 24, tzinfo=UTC)
-    )
+    skill, sources = distill(content, provider=provider, now=datetime(2026, 5, 24, tzinfo=UTC))
 
     assert skill.name == "demo-skill"
     assert skill.version == 1
@@ -90,10 +97,10 @@ def test_distill_requires_pages() -> None:
 
 def test_distill_propagates_provider_errors() -> None:
     class _Boom(LLMProvider):
-        def extract_draft(
-            self, *, source_url: str, source_text: str
-        ) -> DistilledDraft:
+        def extract_draft(self, *, source_url: str, source_text: str) -> DistilledDraft:
             raise RuntimeError("upstream broke")
+
+        judge = _judge_stub  # type: ignore[assignment]
 
     page = _page("https://x/y", b"hi")
     with pytest.raises(RuntimeError, match="upstream broke"):

@@ -128,8 +128,29 @@ def write_sources(
 
 
 def runs_path(root: Path, run_id: str) -> Path:
-    """Where a Run's JSONL audit log lives (writing lands in change #3)."""
+    """Where a Run's JSONL audit log lives (audit module writes it)."""
     return root / "runs" / f"{run_id}.jsonl"
+
+
+def free_slug(root: Path, base: str) -> str:
+    """Find the first slug `base[-N]` that's not in use under skills/ or skills/_draft/."""
+    candidate = base
+    n = 1
+    while _slug_exists_at(root, candidate):
+        n += 1
+        candidate = f"{base}-{n}"
+    return candidate
+
+
+def _slug_exists_at(root: Path, slug: str) -> bool:
+    live = root / "skills" / slug / "SKILL.md"
+    draft = root / "skills" / "_draft" / slug / "SKILL.md"
+    return live.is_file() or draft.is_file()
+
+
+def read_skill_file(path: Path) -> Skill:
+    """Public helper: parse a SKILL.md at a known path."""
+    return _read_skill_file(path)
 
 
 # --- internals ----------------------------------------------------------------
@@ -144,9 +165,7 @@ def _stamp(skill: Skill, identity: Identity) -> Skill:
     name+version (avoids origin/version skew if a caller bumped version
     and cleared only the signature) and a fresh signature is computed.
     """
-    if skill.origin is not None and not skill.origin.startswith(
-        f"{identity.instance_id}:"
-    ):
+    if skill.origin is not None and not skill.origin.startswith(f"{identity.instance_id}:"):
         return skill  # foreign origin — never re-sign on their behalf
     if skill.origin is not None and skill.signature is not None:
         return skill  # ours and complete
@@ -159,6 +178,7 @@ def _stamp(skill: Skill, identity: Identity) -> Skill:
 def _scan(directory: Path, *, draft: bool) -> list[SkillEntry]:
     if not directory.is_dir():
         return []
+    root = directory.parent.parent if draft else directory.parent
     entries: list[SkillEntry] = []
     for child in directory.iterdir():
         if not child.is_dir() or child.name.startswith("_"):
@@ -170,8 +190,24 @@ def _scan(directory: Path, *, draft: bool) -> list[SkillEntry]:
             skill = _read_skill_file(skill_md)
         except (ValueError, OSError):
             continue
-        entries.append(SkillEntry(slug=child.name, draft=draft, judge_score=skill.judge_score))
+        # Prefer the latest RunSummary score over the legacy Skill.judge_score.
+        score = _latest_run_score(root, child.name) or skill.judge_score
+        entries.append(SkillEntry(slug=child.name, draft=draft, judge_score=score))
     return entries
+
+
+def _latest_run_score(root: Path, slug: str) -> float | None:
+    path = root / "sources" / f"{slug}.yml"
+    if not path.is_file():
+        return None
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        sources = SourcesFile(**data)
+    except (ValueError, OSError):
+        return None
+    if not sources.runs:
+        return None
+    return sources.runs[-1].judge_score
 
 
 def _read_skill_file(path: Path) -> Skill:

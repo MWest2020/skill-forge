@@ -120,9 +120,7 @@ def test_verify_detects_tampered_origin(tmp_path: Path) -> None:
     identity = _identity(tmp_path)
     skill = _skill(origin=f"{identity.instance_id}:demo-skill:1")
     sig = sign_skill(skill, identity)
-    tampered = skill.model_copy(
-        update={"origin": "forge-deadbeef:demo-skill:1", "signature": sig}
-    )
+    tampered = skill.model_copy(update={"origin": "forge-deadbeef:demo-skill:1", "signature": sig})
     assert verify_skill(tampered, identity) is False
 
 

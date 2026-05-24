@@ -89,9 +89,7 @@ class Skill(BaseModel):
         if v is None:
             return v
         if not ORIGIN_RE.fullmatch(v):
-            raise ValueError(
-                f"Skill.origin must match '<instance_id>:<slug>:<version>', got {v!r}"
-            )
+            raise ValueError(f"Skill.origin must match '<instance_id>:<slug>:<version>', got {v!r}")
         return v
 
     @field_validator("signature")
@@ -239,6 +237,75 @@ class Run(BaseModel):
     def _slug(cls, v: str) -> str:
         if not SLUG_RE.fullmatch(v):
             raise ValueError(f"Run.skill_slug must be slug-shaped, got {v!r}")
+        return v
+
+
+JUDGE_SEVERITIES = ("info", "warning", "blocker")
+
+
+class JudgeFinding(BaseModel):
+    """One per-axis observation produced by the judge (especially for lost points)."""
+
+    model_config = _STRICT
+    axis: str
+    observation: str
+    severity: str
+
+    @field_validator("axis")
+    @classmethod
+    def _axis_allowed(cls, v: str) -> str:
+        if v not in JUDGE_AXES:
+            raise ValueError(f"JudgeFinding.axis must be one of {JUDGE_AXES}, got {v!r}")
+        return v
+
+    @field_validator("severity")
+    @classmethod
+    def _severity_allowed(cls, v: str) -> str:
+        if v not in JUDGE_SEVERITIES:
+            raise ValueError(f"JudgeFinding.severity must be one of {JUDGE_SEVERITIES}, got {v!r}")
+        return v
+
+
+class RunEvent(BaseModel):
+    """One line in `runs/{run_id}.jsonl`."""
+
+    model_config = _STRICT
+    run_id: str
+    event: str  # imported | judged | promoted | demoted
+    timestamp: datetime
+    skill_slug: str
+    scores: JudgeScore | None = None
+    promoted: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("run_id")
+    @classmethod
+    def _run_id_shape(cls, v: str) -> str:
+        if not RUN_ID_RE.fullmatch(v):
+            raise ValueError(f"RunEvent.run_id must match 'run-YYYY-MM-DD-NNN', got {v!r}")
+        return v
+
+    @field_validator("event")
+    @classmethod
+    def _event_allowed(cls, v: str) -> str:
+        if v not in {"imported", "judged", "promoted", "demoted"}:
+            raise ValueError(
+                f"RunEvent.event must be one of imported/judged/promoted/demoted, got {v!r}"
+            )
+        return v
+
+    @field_validator("skill_slug")
+    @classmethod
+    def _slug(cls, v: str) -> str:
+        if not SLUG_RE.fullmatch(v):
+            raise ValueError(f"RunEvent.skill_slug must be slug-shaped, got {v!r}")
+        return v
+
+    @field_validator("timestamp")
+    @classmethod
+    def _tz_aware(cls, v: datetime) -> datetime:
+        if v.tzinfo is None or v.utcoffset() is None:
+            raise ValueError("RunEvent.timestamp must be timezone-aware")
         return v
 
 

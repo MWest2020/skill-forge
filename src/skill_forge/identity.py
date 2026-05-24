@@ -138,9 +138,7 @@ def _generate(
 def _load(identity_dir: Path) -> Identity:
     priv_path = identity_dir / "private_key.pem"
     _enforce_permissions(priv_path)
-    private_key = serialization.load_pem_private_key(
-        priv_path.read_bytes(), password=None
-    )
+    private_key = serialization.load_pem_private_key(priv_path.read_bytes(), password=None)
     if not isinstance(private_key, Ed25519PrivateKey):
         raise IdentityError(f"{priv_path} is not an Ed25519 private key")
     public_key = private_key.public_key()

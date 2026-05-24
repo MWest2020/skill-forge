@@ -17,7 +17,15 @@ from anthropic.types import (
 )
 from pydantic import ValidationError
 
-from ._prompts import EMIT_DRAFT_TOOL, EXTRACTION_SYSTEM_PROMPT
+from skill_forge.models import JudgeFinding, JudgeScore, Skill
+
+from ._judge import build_judge_score, parse_findings, serialize_skill_for_judge
+from ._prompts import (
+    EMIT_DRAFT_TOOL,
+    EXTRACTION_SYSTEM_PROMPT,
+    JUDGE_SYSTEM_PROMPT,
+    SCORE_SKILL_TOOL,
+)
 from .base import DistilledDraft, LLMProvider, LLMProviderError
 
 MAX_SOURCE_CHARS = 180_000
@@ -76,11 +84,67 @@ class AnthropicProvider(LLMProvider):
                 try:
                     return DistilledDraft.model_validate(block.input)
                 except ValidationError as exc:
-                    raise LLMProviderError(
-                        f"emit_draft input failed validation: {exc}"
-                    ) from exc
+                    raise LLMProviderError(f"emit_draft input failed validation: {exc}") from exc
 
         raise LLMProviderError("model did not emit an emit_draft tool call")
+
+    def judge(
+        self, skill: Skill, *, weights: dict[str, float]
+    ) -> tuple[JudgeScore, list[JudgeFinding]]:
+        score_tool = cast(ToolParam, SCORE_SKILL_TOOL)
+        tool_choice: ToolChoiceToolParam = {"type": "tool", "name": "score_skill"}
+        system_block: TextBlockParam = {
+            "type": "text",
+            "text": JUDGE_SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral"},
+        }
+        user_msg: MessageParam = {
+            "role": "user",
+            "content": serialize_skill_for_judge(skill),
+        }
+
+        try:
+            response = self._client.messages.create(
+                model=self._model,
+                max_tokens=self._max_tokens,
+                system=[system_block],
+                tools=[score_tool],
+                tool_choice=tool_choice,
+                messages=[user_msg],
+            )
+        except anthropic.APIError as exc:
+            raise LLMProviderError(_redact(str(exc))) from exc
+
+        for block in response.content:
+            if block.type == "tool_use" and block.name == "score_skill":
+                return _parse_score_payload(block.input, weights)
+        raise LLMProviderError("model did not emit a score_skill tool call")
+
+
+def _parse_score_payload(
+    payload: object, weights: dict[str, float]
+) -> tuple[JudgeScore, list[JudgeFinding]]:
+    if not isinstance(payload, dict):
+        raise LLMProviderError(f"score_skill payload was not a dict: {type(payload).__name__}")
+    findings_raw = payload.get("findings", [])
+    if not isinstance(findings_raw, list):
+        raise LLMProviderError("score_skill findings must be a list")
+    try:
+        axes = {
+            axis: float(payload[axis])
+            for axis in (
+                "schema_compliance",
+                "clarity",
+                "actionability",
+                "gap_coverage",
+                "provenance_quality",
+            )
+        }
+        findings = parse_findings(findings_raw)
+        score = build_judge_score(axes, weights)
+    except (KeyError, TypeError, ValueError, ValidationError) as exc:
+        raise LLMProviderError(f"score_skill payload failed validation: {exc}") from exc
+    return score, findings
 
 
 def _redact(message: str) -> str:

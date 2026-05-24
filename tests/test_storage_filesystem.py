@@ -227,10 +227,14 @@ def test_read_skill_rejects_stripped_signature(tmp_path: Path) -> None:
     fs.write_skill(tmp_path, _skill(), draft=True, identity=identity)
     path = tmp_path / "skills" / "_draft" / "demo-skill" / "SKILL.md"
     # Strip the signature line from frontmatter
-    new = "\n".join(
-        line for line in path.read_text(encoding="utf-8").splitlines()
-        if not line.startswith("signature:")
-    ) + "\n"
+    new = (
+        "\n".join(
+            line
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if not line.startswith("signature:")
+        )
+        + "\n"
+    )
     path.write_text(new, encoding="utf-8")
     with pytest.raises(SignatureMismatchError, match="unsigned"):
         fs.read_skill(tmp_path, "demo-skill", identity=identity)
@@ -256,9 +260,7 @@ def test_write_skill_preserves_existing_signature(tmp_path: Path) -> None:
     from skill_forge.identity import sign_skill
 
     real_sig = sign_skill(
-        _skill().model_copy(
-            update={"origin": f"{identity.instance_id}:demo-skill:1"}
-        ),
+        _skill().model_copy(update={"origin": f"{identity.instance_id}:demo-skill:1"}),
         identity,
     )
     pre_stamped = pre_stamped.model_copy(update={"signature": real_sig})

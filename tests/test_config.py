@@ -17,10 +17,7 @@ def test_load_overlays_project_file(tmp_path: Path) -> None:
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
     (cfg_dir / "default.yml").write_text(
-        "providers:\n"
-        "  extract: anthropic\n"
-        "anthropic:\n"
-        "  model: claude-sonnet-4-6\n",
+        "providers:\n  extract: anthropic\nanthropic:\n  model: claude-sonnet-4-6\n",
         encoding="utf-8",
     )
     cfg = load(tmp_path)
@@ -49,8 +46,6 @@ def test_load_returns_defaults_when_yaml_is_not_a_dict(tmp_path: Path) -> None:
 def test_defaults_are_not_mutated_by_load(tmp_path: Path) -> None:
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
-    (cfg_dir / "default.yml").write_text(
-        "providers:\n  extract: anthropic\n", encoding="utf-8"
-    )
+    (cfg_dir / "default.yml").write_text("providers:\n  extract: anthropic\n", encoding="utf-8")
     load(tmp_path)
     assert DEFAULTS["providers"]["extract"] == "claude_code"

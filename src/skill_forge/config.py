@@ -57,11 +57,7 @@ def load(root: Path | None = None) -> dict[str, Any]:
 def _merge(into: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:
     """Deep-merge `src` into `into` (returns `into`). Lists replace."""
     for key, value in src.items():
-        if (
-            key in into
-            and isinstance(into[key], dict)
-            and isinstance(value, dict)
-        ):
+        if key in into and isinstance(into[key], dict) and isinstance(value, dict):
             _merge(into[key], value)
         else:
             into[key] = value

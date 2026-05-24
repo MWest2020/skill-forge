@@ -5,11 +5,13 @@ Mocks the anthropic.Anthropic client so we don't hit the live API.
 
 from __future__ import annotations
 
+from datetime import date
 from unittest.mock import MagicMock
 
 import anthropic
 import pytest
 
+from skill_forge.models import JUDGE_AXES, Skill, SourceRef
 from skill_forge.providers import anthropic as anth_module
 from skill_forge.providers.anthropic import AnthropicProvider, _redact
 from skill_forge.providers.base import DistilledDraft, LLMProviderError
@@ -98,9 +100,7 @@ def test_extract_draft_wraps_api_error_and_redacts_key(
             self.message = msg
 
     fake = MagicMock()
-    fake.messages.create.side_effect = StubAPIError(
-        "upstream rejected key sk-ant-abc_123-XYZ"
-    )
+    fake.messages.create.side_effect = StubAPIError("upstream rejected key sk-ant-abc_123-XYZ")
     _install_fake_client(monkeypatch, fake)
 
     with pytest.raises(LLMProviderError) as exc:
@@ -127,3 +127,90 @@ def test_extract_draft_truncates_long_source(monkeypatch: pytest.MonkeyPatch) ->
 def test_redact_helper() -> None:
     assert _redact("oops sk-ant-foo_bar-123 here") == "oops sk-ant-*** here"
     assert _redact("no key in this string") == "no key in this string"
+
+
+# --- judge --------------------------------------------------------------------
+
+
+_WEIGHTS = {
+    "schema_compliance": 0.20,
+    "clarity": 0.20,
+    "actionability": 0.25,
+    "gap_coverage": 0.20,
+    "provenance_quality": 0.15,
+}
+
+
+def _fake_score_response(payload: dict) -> MagicMock:
+    block = MagicMock()
+    block.type = "tool_use"
+    block.name = "score_skill"
+    block.input = payload
+    response = MagicMock()
+    response.content = [block]
+    return response
+
+
+def _skill() -> Skill:
+    return Skill(
+        name="demo",
+        description="Use when X.",
+        version=1,
+        sources=[SourceRef(id="src-abc123")],
+        created=date(2026, 5, 24),
+        body="## When to use\nA\n## Procedure\nB\n## Failure modes\nC\n",
+    )
+
+
+def test_anthropic_judge_returns_score_and_findings(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = MagicMock()
+    fake.messages.create.return_value = _fake_score_response(
+        {
+            **{axis: 0.8 for axis in JUDGE_AXES},
+            "findings": [
+                {"axis": "clarity", "observation": "could be tighter", "severity": "warning"}
+            ],
+        }
+    )
+    _install_fake_client(monkeypatch, fake)
+
+    score, findings = AnthropicProvider().judge(_skill(), weights=_WEIGHTS)
+    assert score.total == pytest.approx(sum(_WEIGHTS[a] * 0.8 for a in JUDGE_AXES))
+    assert len(findings) == 1
+    assert findings[0].axis == "clarity"
+
+    # Forced tool_choice + cache_control
+    kwargs = fake.messages.create.call_args.kwargs
+    assert kwargs["tool_choice"] == {"type": "tool", "name": "score_skill"}
+    assert kwargs["system"][0]["cache_control"] == {"type": "ephemeral"}
+
+
+def test_anthropic_judge_raises_when_no_tool_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    block = MagicMock()
+    block.type = "text"
+    response = MagicMock()
+    response.content = [block]
+    fake = MagicMock()
+    fake.messages.create.return_value = response
+    _install_fake_client(monkeypatch, fake)
+
+    with pytest.raises(LLMProviderError, match="did not emit"):
+        AnthropicProvider().judge(_skill(), weights=_WEIGHTS)
+
+
+def test_anthropic_judge_raises_on_bad_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = MagicMock()
+    # Missing one axis
+    fake.messages.create.return_value = _fake_score_response(
+        {
+            "schema_compliance": 0.8,
+            "clarity": 0.8,
+            "actionability": 0.8,
+            "gap_coverage": 0.8,
+            # provenance_quality missing
+            "findings": [],
+        }
+    )
+    _install_fake_client(monkeypatch, fake)
+    with pytest.raises(LLMProviderError, match="failed validation"):
+        AnthropicProvider().judge(_skill(), weights=_WEIGHTS)

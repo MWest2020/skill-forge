@@ -30,6 +30,86 @@ per-page sections.
 """
 
 
+JUDGE_SYSTEM_PROMPT = """\
+You judge a single SKILL.md against the skill-forge rubric.
+
+Output ONLY via the `score_skill` tool. No prose, no preamble.
+
+Score each of the five axes from 0.0 to 1.0:
+
+- schema_compliance — frontmatter valid, expected sections present in order
+  ("## When to use", "## Procedure", "## Failure modes"). Missing/extra
+  sections lose points proportionally.
+- clarity — the "when to use" hint is unambiguous; no unexplained jargon;
+  procedure steps are concrete.
+- actionability — an agent could follow this end-to-end without external
+  guesswork. Cites specific commands, flags, paths.
+- gap_coverage — adds something distinct versus typical skills on this
+  topic. Generic content scores low.
+- provenance_quality — sources field non-empty and meaningful; description
+  reads as paraphrased, not verbatim quotation.
+
+For each axis below 1.0, write one `findings` entry with:
+- axis: the axis name
+- observation: 1-3 sentences naming the specific gap or fix
+- severity: "info" (cosmetic), "warning" (would lower agent effectiveness),
+  "blocker" (the skill is unsafe or unusable as-is)
+
+Do NOT output a `total` — the caller computes it from your per-axis scores
+and the configured weights.
+"""
+
+
+SCORE_SKILL_TOOL = {
+    "name": "score_skill",
+    "description": "Emit per-axis scores and findings for one SKILL.md.",
+    "input_schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "schema_compliance": {"type": "number", "minimum": 0, "maximum": 1},
+            "clarity": {"type": "number", "minimum": 0, "maximum": 1},
+            "actionability": {"type": "number", "minimum": 0, "maximum": 1},
+            "gap_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+            "provenance_quality": {"type": "number", "minimum": 0, "maximum": 1},
+            "findings": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "axis": {
+                            "type": "string",
+                            "enum": [
+                                "schema_compliance",
+                                "clarity",
+                                "actionability",
+                                "gap_coverage",
+                                "provenance_quality",
+                            ],
+                        },
+                        "observation": {"type": "string"},
+                        "severity": {
+                            "type": "string",
+                            "enum": ["info", "warning", "blocker"],
+                        },
+                    },
+                    "required": ["axis", "observation", "severity"],
+                },
+            },
+        },
+        "required": [
+            "schema_compliance",
+            "clarity",
+            "actionability",
+            "gap_coverage",
+            "provenance_quality",
+            "findings",
+        ],
+    },
+}
+
+
 EMIT_DRAFT_TOOL = {
     "name": "emit_draft",
     "description": "Emit one distilled SKILL.md draft for the provided source content.",

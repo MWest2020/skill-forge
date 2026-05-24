@@ -61,9 +61,7 @@ def test_backfill_stamps_missing_fields(tmp_path: Path) -> None:
     home = tmp_path / "home"
     _write_unsigned_skill(root)
 
-    result = runner.invoke(
-        app, ["identity", "backfill", "--root", str(root), "--home", str(home)]
-    )
+    result = runner.invoke(app, ["identity", "backfill", "--root", str(root), "--home", str(home)])
     assert result.exit_code == 0
     assert "stamped:" in result.output
 
@@ -85,9 +83,7 @@ def test_backfill_is_idempotent(tmp_path: Path) -> None:
     _write_unsigned_skill(root)
 
     runner.invoke(app, ["identity", "backfill", "--root", str(root), "--home", str(home)])
-    second = runner.invoke(
-        app, ["identity", "backfill", "--root", str(root), "--home", str(home)]
-    )
+    second = runner.invoke(app, ["identity", "backfill", "--root", str(root), "--home", str(home)])
     assert second.exit_code == 0
     assert "stamped:" not in second.output
     assert "already signed" in second.output
@@ -100,16 +96,12 @@ def test_backfill_skips_foreign_origin(tmp_path: Path) -> None:
     # Write a skill signed by a foreign identity
     fs.write_skill(
         root,
-        _skill().model_copy(
-            update={"origin": f"{foreign_identity.instance_id}:demo-skill:1"}
-        ),
+        _skill().model_copy(update={"origin": f"{foreign_identity.instance_id}:demo-skill:1"}),
         draft=True,
         identity=foreign_identity,
     )
 
-    result = runner.invoke(
-        app, ["identity", "backfill", "--root", str(root), "--home", str(home)]
-    )
+    result = runner.invoke(app, ["identity", "backfill", "--root", str(root), "--home", str(home)])
     assert result.exit_code == 0
     assert "foreign origin" in result.output
 
@@ -155,6 +147,7 @@ def test_extract_threads_identity_through(tmp_path: Path, monkeypatch: pytest.Mo
 
     # Patch the ClaudeCodeProvider as imported into the CLI module.
     from skill_forge import cli as cli_mod
+    from skill_forge.models import JudgeFinding, JudgeScore
     from skill_forge.providers.base import DistilledDraft, LLMProvider
 
     class _Fake(LLMProvider):
@@ -164,6 +157,11 @@ def test_extract_threads_identity_through(tmp_path: Path, monkeypatch: pytest.Mo
                 description="Use this skill when X.",
                 body="## When to use\n...\n## Procedure\n...\n## Failure modes\n...\n",
             )
+
+        def judge(
+            self, skill: Skill, *, weights: dict[str, float]
+        ) -> tuple[JudgeScore, list[JudgeFinding]]:
+            raise NotImplementedError("test fake does not implement judge")
 
     monkeypatch.setattr(cli_mod, "ClaudeCodeProvider", lambda **_: _Fake())
     monkeypatch.setenv("SKILL_FORGE_HOME", str(home))

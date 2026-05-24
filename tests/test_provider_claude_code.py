@@ -6,10 +6,12 @@ Mocks subprocess.run so we don't shell out to a real `claude` binary.
 from __future__ import annotations
 
 import subprocess
+from datetime import date
 from unittest.mock import MagicMock
 
 import pytest
 
+from skill_forge.models import JUDGE_AXES, Skill, SourceRef
 from skill_forge.providers import claude_code as cc_mod
 from skill_forge.providers.base import DistilledDraft, LLMProviderError
 from skill_forge.providers.claude_code import ClaudeCodeProvider, _extract_json_object
@@ -43,9 +45,7 @@ def _patch_run(monkeypatch: pytest.MonkeyPatch, **kwargs: object) -> MagicMock:
 
 def test_extract_draft_parses_clean_json(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = _patch_run(monkeypatch, return_value=_ok_completed(VALID_JSON))
-    draft = ClaudeCodeProvider().extract_draft(
-        source_url="https://x", source_text="hi"
-    )
+    draft = ClaudeCodeProvider().extract_draft(source_url="https://x", source_text="hi")
     assert isinstance(draft, DistilledDraft)
     assert draft.name == "demo-skill"
     # prompt was passed via stdin, not argv
@@ -59,9 +59,7 @@ def test_extract_draft_parses_clean_json(monkeypatch: pytest.MonkeyPatch) -> Non
 def test_extract_draft_tolerates_fenced_json(monkeypatch: pytest.MonkeyPatch) -> None:
     fenced = f"Sure — here's the draft:\n\n```json\n{VALID_JSON}\n```\nHope this helps."
     _patch_run(monkeypatch, return_value=_ok_completed(fenced))
-    draft = ClaudeCodeProvider().extract_draft(
-        source_url="https://x", source_text="hi"
-    )
+    draft = ClaudeCodeProvider().extract_draft(source_url="https://x", source_text="hi")
     assert draft.name == "demo-skill"
 
 
@@ -90,9 +88,7 @@ def test_extract_draft_raises_on_nonzero_exit(monkeypatch: pytest.MonkeyPatch) -
 def test_extract_draft_raises_on_missing_binary(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_run(monkeypatch, side_effect=FileNotFoundError("claude"))
     with pytest.raises(LLMProviderError, match="not found on PATH"):
-        ClaudeCodeProvider(binary="claude").extract_draft(
-            source_url="https://x", source_text="hi"
-        )
+        ClaudeCodeProvider(binary="claude").extract_draft(source_url="https://x", source_text="hi")
 
 
 def test_extract_draft_raises_on_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -101,16 +97,12 @@ def test_extract_draft_raises_on_timeout(monkeypatch: pytest.MonkeyPatch) -> Non
         side_effect=subprocess.TimeoutExpired(cmd="claude -p", timeout=1.0),
     )
     with pytest.raises(LLMProviderError, match="timed out"):
-        ClaudeCodeProvider(timeout=1.0).extract_draft(
-            source_url="https://x", source_text="hi"
-        )
+        ClaudeCodeProvider(timeout=1.0).extract_draft(source_url="https://x", source_text="hi")
 
 
 def test_extract_draft_truncates_long_source(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = _patch_run(monkeypatch, return_value=_ok_completed(VALID_JSON))
-    ClaudeCodeProvider().extract_draft(
-        source_url="https://x", source_text="x" * 250_000
-    )
+    ClaudeCodeProvider().extract_draft(source_url="https://x", source_text="x" * 250_000)
     prompt = fake.call_args.kwargs["input"]
     # 180k char source cap + the prompt header (~1k chars)
     assert len(prompt) < 182_000
@@ -138,3 +130,60 @@ def test_extract_json_none_when_no_object() -> None:
 def test_extract_json_none_when_array() -> None:
     # Top-level arrays are not valid drafts
     assert _extract_json_object("[1, 2, 3]") is None
+
+
+# --- judge --------------------------------------------------------------------
+
+
+_WEIGHTS = {
+    "schema_compliance": 0.20,
+    "clarity": 0.20,
+    "actionability": 0.25,
+    "gap_coverage": 0.20,
+    "provenance_quality": 0.15,
+}
+
+
+def _skill() -> Skill:
+    return Skill(
+        name="demo",
+        description="Use when X.",
+        version=1,
+        sources=[SourceRef(id="src-abc123")],
+        created=date(2026, 5, 24),
+        body="## When to use\nA\n## Procedure\nB\n## Failure modes\nC\n",
+    )
+
+
+def _judge_json(value: float = 0.8) -> str:
+    payload = {axis: value for axis in JUDGE_AXES}
+    payload["findings"] = []
+    return __import__("json").dumps(payload)
+
+
+def test_claude_code_judge_parses_clean_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_run(monkeypatch, return_value=_ok_completed(_judge_json(0.9)))
+    score, findings = ClaudeCodeProvider().judge(_skill(), weights=_WEIGHTS)
+    assert score.total == pytest.approx(0.9)
+    assert findings == []
+
+
+def test_claude_code_judge_passes_skill_via_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = _patch_run(monkeypatch, return_value=_ok_completed(_judge_json()))
+    ClaudeCodeProvider().judge(_skill(), weights=_WEIGHTS)
+    prompt = fake.call_args.kwargs["input"]
+    assert "## When to use" in prompt
+    assert "demo" in prompt
+
+
+def test_claude_code_judge_raises_on_unparseable(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_run(monkeypatch, return_value=_ok_completed("not JSON"))
+    with pytest.raises(LLMProviderError, match="parseable JSON"):
+        ClaudeCodeProvider().judge(_skill(), weights=_WEIGHTS)
+
+
+def test_claude_code_judge_raises_on_missing_axis(monkeypatch: pytest.MonkeyPatch) -> None:
+    bad = '{"schema_compliance": 0.8, "clarity": 0.8, "findings": []}'
+    _patch_run(monkeypatch, return_value=_ok_completed(bad))
+    with pytest.raises(LLMProviderError, match="failed validation"):
+        ClaudeCodeProvider().judge(_skill(), weights=_WEIGHTS)
