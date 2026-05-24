@@ -28,22 +28,22 @@ cp .env.example .env   # then add your ANTHROPIC_API_KEY
 
 ```bash
 # List everything in the skills tree (live + draft)
-uv run skill-forge ls
+uv run forge ls
 
 # Inspect a single skill
-uv run skill-forge show kubernetes-pvc-resize-on-statefulset
+uv run forge show kubernetes-pvc-resize-on-statefulset
 
 # Full pipeline (target shape — works after change #4)
-uv run skill-forge run "kubernetes pvc resize"
+uv run forge run "kubernetes pvc resize"
 ```
 
 Per-stage commands let you debug each step in isolation:
 
 ```bash
-uv run skill-forge discover "kubernetes pvc resize"
-uv run skill-forge extract https://example.com/post
-uv run skill-forge judge skills/_draft/my-skill/SKILL.md
-uv run skill-forge promote my-skill
+uv run forge discover "kubernetes pvc resize"
+uv run forge extract https://example.com/post
+uv run forge judge skills/_draft/my-skill/SKILL.md
+uv run forge promote my-skill
 ```
 
 ## License policy

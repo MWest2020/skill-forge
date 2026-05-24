@@ -1,4 +1,4 @@
-"""skill-forge CLI entrypoint."""
+"""`forge` CLI entrypoint for the skill-forge project."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from rich.table import Table
 from skill_forge.storage import filesystem as storage
 
 app = typer.Typer(
-    name="skill-forge",
+    name="forge",
     help="Distill sources into reusable SKILL.md files.",
     no_args_is_help=True,
 )

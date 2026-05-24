@@ -144,14 +144,14 @@ isolation for debugging.
 
 ## CLI commands (MVP)
 
-- `skill-forge discover <topic>` — find + license-filter, list candidates only
-- `skill-forge extract <source_url>` — extraction only, draft SKILL.md output
-- `skill-forge judge <skill_path>` — judge only, score + breakdown
-- `skill-forge run <topic>` — full pipeline
-- `skill-forge promote <slug>` — manual promotion (overrules threshold)
-- `skill-forge demote <slug>` — manual demotion with a reason
-- `skill-forge ls` — list skills (live + draft) with scores
-- `skill-forge show <slug>` — show SKILL.md + sources.yml
+- `forge discover <topic>` — find + license-filter, list candidates only
+- `forge extract <source_url>` — extraction only, draft SKILL.md output
+- `forge judge <skill_path>` — judge only, score + breakdown
+- `forge run <topic>` — full pipeline
+- `forge promote <slug>` — manual promotion (overrules threshold)
+- `forge demote <slug>` — manual demotion with a reason
+- `forge ls` — list skills (live + draft) with scores
+- `forge show <slug>` — show SKILL.md + sources.yml
 
 ## Roadmap (change proposals)
 

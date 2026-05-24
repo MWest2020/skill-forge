@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-skill-forge = "skill_forge.cli:app"
+forge = "skill_forge.cli:app"
 
 [dependency-groups]
 dev = [
