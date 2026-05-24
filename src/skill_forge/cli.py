@@ -314,7 +314,7 @@ def identity_backfill(
         if dry_run:
             typer.echo(f"would stamp: {skill_md.relative_to(base)}")
             continue
-        is_draft = "/_draft/" in skill_md.as_posix()
+        is_draft = (base / "skills" / "_draft") in skill_md.parents
         try:
             storage.write_skill(
                 base, skill, draft=is_draft, identity=identity, overwrite=True

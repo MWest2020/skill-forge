@@ -216,3 +216,20 @@ def test_sources_file_round_trip() -> None:
 def test_sources_file_rejects_bad_slug() -> None:
     with pytest.raises(ValidationError):
         SourcesFile(slug="Bad Slug", sources=[_source()])
+
+
+# --- body normalization (regression for sign/read round-trip bug) -------------
+
+
+def test_body_validator_normalizes_leading_and_trailing_newlines() -> None:
+    # Body of just newlines collapses to empty (matches read-back behavior).
+    s = _skill(body="\n\n\n")
+    assert s.body == ""
+
+    # Leading newlines stripped, trailing newline ensured.
+    s = _skill(body="\n\nactual content")
+    assert s.body == "actual content\n"
+
+    # Already-normalized body unchanged.
+    s = _skill(body="content\n")
+    assert s.body == "content\n"

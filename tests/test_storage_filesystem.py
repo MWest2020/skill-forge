@@ -202,14 +202,46 @@ def test_read_skill_rejects_tampered_body(tmp_path: Path) -> None:
         fs.read_skill(tmp_path, "demo-skill", identity=identity)
 
 
-def test_read_skill_skips_verify_for_foreign_origin(tmp_path: Path) -> None:
+def test_read_skill_rejects_foreign_origin_when_identity_supplied(
+    tmp_path: Path,
+) -> None:
     identity_a = from_seed(tmp_path / "a", _SEED)
     identity_b = from_seed(tmp_path / "b", b"\x08" * 32)
     fs.write_skill(tmp_path, _skill(), draft=True, identity=identity_a)
-    # Reading with identity_b — origin is foreign, verify is skipped, no error.
-    loaded = fs.read_skill(tmp_path, "demo-skill", identity=identity_b)
+    with pytest.raises(SignatureMismatchError, match="foreign origin"):
+        fs.read_skill(tmp_path, "demo-skill", identity=identity_b)
+
+
+def test_read_skill_loads_foreign_origin_without_identity(tmp_path: Path) -> None:
+    """No identity supplied => no verification, foreign origin loads silently."""
+    identity_a = from_seed(tmp_path / "a", _SEED)
+    fs.write_skill(tmp_path, _skill(), draft=True, identity=identity_a)
+    loaded = fs.read_skill(tmp_path, "demo-skill")  # no identity
     assert loaded.origin is not None
     assert loaded.origin.startswith(identity_a.instance_id)
+
+
+def test_read_skill_rejects_stripped_signature(tmp_path: Path) -> None:
+    """Removing the signature field defeats verification if read_skill isn't strict."""
+    identity = from_seed(tmp_path / "id", _SEED)
+    fs.write_skill(tmp_path, _skill(), draft=True, identity=identity)
+    path = tmp_path / "skills" / "_draft" / "demo-skill" / "SKILL.md"
+    # Strip the signature line from frontmatter
+    new = "\n".join(
+        line for line in path.read_text(encoding="utf-8").splitlines()
+        if not line.startswith("signature:")
+    ) + "\n"
+    path.write_text(new, encoding="utf-8")
+    with pytest.raises(SignatureMismatchError, match="unsigned"):
+        fs.read_skill(tmp_path, "demo-skill", identity=identity)
+
+
+def test_read_skill_unsigned_loads_without_identity(tmp_path: Path) -> None:
+    """Pre-change-#1 skills (no origin/signature) load when no identity is supplied."""
+    fs.write_skill(tmp_path, _skill(), draft=True)  # no identity
+    loaded = fs.read_skill(tmp_path, "demo-skill")
+    assert loaded.origin is None
+    assert loaded.signature is None
 
 
 def test_write_skill_preserves_existing_signature(tmp_path: Path) -> None:

@@ -105,12 +105,14 @@ class Skill(BaseModel):
 
     @field_validator("body")
     @classmethod
-    def _body_trailing_newline(cls, v: str) -> str:
-        # Why: storage writes body with a trailing newline. Signatures cover the
-        # body's sha256, so the body we sign must equal the body we read back.
-        # Normalizing here makes that round-trip stable.
+    def _body_normalize(cls, v: str) -> str:
+        # Why: storage's _split_frontmatter does lstrip("\n") on read and
+        # _render_skill appends "\n" on write. Signatures cover body_sha256,
+        # so the body we sign must equal the body we read back. Normalize
+        # both ends here (the one place that touches body validation).
+        v = v.lstrip("\n")
         if v and not v.endswith("\n"):
-            return v + "\n"
+            v += "\n"
         return v
 
 

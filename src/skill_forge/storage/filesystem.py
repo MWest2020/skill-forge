@@ -39,24 +39,45 @@ def list_skills(root: Path) -> list[SkillEntry]:
 def read_skill(root: Path, slug: str, *, identity: Identity | None = None) -> Skill:
     """Return the Skill for `slug`, preferring live over draft.
 
-    If `identity` is supplied AND the loaded skill carries a signature whose
-    origin starts with that identity's instance_id, the signature is verified.
-    Mismatches raise `SignatureMismatchError`. Foreign-origin signatures are
-    not verified here (federation lands the public-key lookup mechanism).
+    When `identity` is supplied, the loader is **strict**: the skill must
+    carry both an `origin` from this instance and a valid `signature`.
+    Anything else — missing fields, foreign origin, mismatched signature —
+    raises `SignatureMismatchError`. Without an identity argument, no
+    verification is performed (status quo for read-only tools like `ls`).
+
+    Strictness defeats the tamper-evidence bypasses that would otherwise
+    arise from stripping the signature field or rewriting `origin` to claim
+    a foreign instance. Federation (change #8) will introduce a separate
+    public-key-lookup path for legitimately-foreign skills.
     """
     live = root / "skills" / slug / "SKILL.md"
     draft = root / "skills" / "_draft" / slug / "SKILL.md"
     for path in (live, draft):
         if path.is_file():
             skill = _read_skill_file(path)
-            if identity is not None and _is_our_signature(skill, identity):
-                if not verify_skill(skill, identity):
-                    raise SignatureMismatchError(
-                        f"signature mismatch for {slug!r} at {path} "
-                        f"(origin={skill.origin})"
-                    )
+            if identity is not None:
+                _verify_strict(skill, slug, path, identity)
             return skill
     raise FileNotFoundError(f"Skill {slug!r} not found. Checked: {live}, {draft}")
+
+
+def _verify_strict(skill: Skill, slug: str, path: Path, identity: Identity) -> None:
+    if skill.origin is None or skill.signature is None:
+        raise SignatureMismatchError(
+            f"{slug!r} at {path} is unsigned (origin={skill.origin!r}, "
+            f"signature={'present' if skill.signature else 'missing'}); "
+            f"run `forge identity backfill` to stamp it."
+        )
+    if not skill.origin.startswith(f"{identity.instance_id}:"):
+        raise SignatureMismatchError(
+            f"{slug!r} at {path} has foreign origin {skill.origin!r}; "
+            f"this instance ({identity.instance_id}) cannot verify it. "
+            f"Federation (change #8) is not implemented yet."
+        )
+    if not verify_skill(skill, identity):
+        raise SignatureMismatchError(
+            f"signature mismatch for {slug!r} at {path} (origin={skill.origin})"
+        )
 
 
 def read_sources(root: Path, slug: str) -> SourcesFile:
@@ -118,22 +139,21 @@ def _stamp(skill: Skill, identity: Identity) -> Skill:
     """Fill missing `origin` and `signature` for our own skills.
 
     Foreign-origin skills (origin set but not ours) are returned unchanged.
+    Our own skills with both fields already set are returned unchanged.
+    When either field is missing, `origin` is regenerated from current
+    name+version (avoids origin/version skew if a caller bumped version
+    and cleared only the signature) and a fresh signature is computed.
     """
-    if skill.origin is None:
-        skill = skill.model_copy(
-            update={"origin": f"{identity.instance_id}:{skill.name}:{skill.version}"}
-        )
-    elif not skill.origin.startswith(f"{identity.instance_id}:"):
+    if skill.origin is not None and not skill.origin.startswith(
+        f"{identity.instance_id}:"
+    ):
         return skill  # foreign origin — never re-sign on their behalf
-    if skill.signature is None:
-        skill = skill.model_copy(update={"signature": sign_skill(skill, identity)})
-    return skill
-
-
-def _is_our_signature(skill: Skill, identity: Identity) -> bool:
-    if skill.signature is None or skill.origin is None:
-        return False
-    return skill.origin.startswith(f"{identity.instance_id}:")
+    if skill.origin is not None and skill.signature is not None:
+        return skill  # ours and complete
+    skill = skill.model_copy(
+        update={"origin": f"{identity.instance_id}:{skill.name}:{skill.version}"}
+    )
+    return skill.model_copy(update={"signature": sign_skill(skill, identity)})
 
 
 def _scan(directory: Path, *, draft: bool) -> list[SkillEntry]:
