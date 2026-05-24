@@ -1,5 +1,13 @@
 # skill-forge — project context
 
+> ⚠️ **Roadmap superseded.** The "Roadmap (change proposals)" section near the
+> bottom of this file is **superseded by [`STRATEGY.md`](../STRATEGY.md)**
+> (curation-first pivot, May 2026). The active roadmap, change ordering, and
+> non-goals live there. See [`openspec/roadmap.md`](roadmap.md) for the holding
+> notes on changes #6–#8. The rest of this file (purpose, non-goals, tech
+> conventions, SKILL.md schema, judge rubric, pipeline flow, CLI surface) is
+> still authoritative.
+
 ## One-line pitch
 
 A local CLI pipeline that turns sources (URLs, repos, files, chat exports) into

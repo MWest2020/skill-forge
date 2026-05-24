@@ -73,24 +73,40 @@ skill-forge/
 ├── sources/                # provenance per skill
 ├── runs/                   # JSONL audit trail (gitignored)
 ├── config/default.yml      # rubric weights + thresholds
+├── STRATEGY.md             # authoritative strategy + roadmap (May 2026 pivot)
 └── openspec/
-    ├── project.md          # context for future Claude Code sessions
+    ├── project.md          # design context (roadmap section superseded by STRATEGY.md)
     ├── AGENTS.md           # OpenSpec workflow
-    └── changes/            # change proposals (roadmap)
+    ├── roadmap.md          # stub for changes #6–#8 (plugin bridges, MCP, federation)
+    ├── changes/            # active change proposals
+    └── archive/            # completed change proposals (per month)
 ```
 
 ## Roadmap
 
-Work is split into change proposals under `openspec/changes/`. In order:
+skill-forge has pivoted from extraction-first to **curation-first**. The
+authoritative plan lives in [`STRATEGY.md`](STRATEGY.md); a brief shape of
+the deferred plugin-bridge / MCP-server / federation work sits in
+[`openspec/roadmap.md`](openspec/roadmap.md).
+
+**Done** (archived under `openspec/archive/2026-05/`):
 
 1. **add-core-models-and-storage** — Pydantic models, filesystem adapter, `ls`/`show`.
-2. **add-extraction-pipeline** — `LLMProvider` + Anthropic + fetcher + distiller.
-3. **add-judge-and-promotion** — rubric-based judge, promoter, audit trail.
-4. **add-discovery** — web + GitHub search with license detection.
-5. **add-ollama-provider** — local LLM for the judge stage.
-6. **add-refinement-loop** (later) — merge a new source into an existing skill.
+2. **add-extraction-pipeline** — `LLMProvider` + Anthropic + fetcher + distiller, `forge extract`.
+3. **add-claude-code-provider** — subscription auth via `claude -p`, config-driven provider selection.
 
-See [`openspec/project.md`](openspec/project.md) for the full design context and
+**Active proposals** (in `openspec/changes/`):
+
+1. **add-instance-identity** — Ed25519 keypair + `origin` + `signature` on every skill.
+2. **add-import-and-judge** — `forge import`, real `forge judge`, promote/demote, audit trail.
+3. **add-refinement-loop** — `forge refine` with lineage tracking and accept/reject review.
+
+Plus `add-discovery`, `add-ollama-provider`, `add-plugin-bridges`,
+`add-mcp-server-mode`, and `add-federation` as outlined in `STRATEGY.md` /
+`openspec/roadmap.md`.
+
+See [`openspec/project.md`](openspec/project.md) for full design context (note:
+its roadmap section is superseded by `STRATEGY.md`) and
 [`openspec/AGENTS.md`](openspec/AGENTS.md) for the OpenSpec workflow.
 
 ## Development
