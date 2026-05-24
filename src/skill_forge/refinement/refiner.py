@@ -120,8 +120,12 @@ def accept_iteration(
 
     body = storage.read_iteration(root, slug, version, draft=draft)
     current_skill = storage.read_skill(root, slug, identity=identity)
-    new_skill = current_skill.model_copy(
-        update={"body": body, "signature": None}  # clear signature → resigned on write
+    # Why model_validate not model_copy: model_copy bypasses field validators.
+    # The Skill body validator normalizes leading/trailing newlines; without
+    # it the body we sign won't match the body we read back (silent sig fail
+    # — same class of bug that change #1's body normalizer fixed).
+    new_skill = Skill.model_validate(
+        {**current_skill.model_dump(mode="json"), "body": body, "signature": None}
     )
     new_path = storage.write_skill(
         root, new_skill, draft=draft, identity=identity, overwrite=True
@@ -220,22 +224,34 @@ def _latest_judge_findings(root: Path, slug: str) -> list[JudgeFinding] | None:
     runs_dir = root / "runs"
     if not runs_dir.is_dir():
         return None
+    import sys
+
     for path in sorted(runs_dir.glob("*.jsonl"), reverse=True):
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except OSError:
             continue
-        for line in reversed(lines):
+        for lineno, line in enumerate(reversed(lines), start=1):
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:
+                print(
+                    f"warning: {path.name} line {len(lines) - lineno + 1}: "
+                    "could not parse JSON, skipping",
+                    file=sys.stderr,
+                )
                 continue
             if data.get("event") != "judged" or data.get("skill_slug") != slug:
                 continue
             findings_raw = data.get("findings", [])
             try:
                 return [JudgeFinding(**item) for item in findings_raw]
-            except ValidationError:
+            except ValidationError as exc:
+                print(
+                    f"warning: {path.name}: judged event for {slug!r} has "
+                    f"invalid findings, skipping: {exc}",
+                    file=sys.stderr,
+                )
                 continue
     return None
 

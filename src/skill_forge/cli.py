@@ -500,6 +500,7 @@ def diff(
     import difflib
     import shutil as _shutil
     import subprocess
+    import sys
 
     base = _resolve_root(root)
     draft = not (base / "skills" / slug / "SKILL.md").is_file()
@@ -533,8 +534,11 @@ def diff(
         raise typer.Exit(code=1) from exc
 
     if _shutil.which("git"):
+        # Only force color when stdout is a TTY — otherwise piped output gets
+        # literal ANSI escape codes.
+        color = "always" if sys.stdout.isatty() else "never"
         subprocess.run(
-            ["git", "diff", "--no-index", "--color=always", str(from_path), str(to_path)],
+            ["git", "diff", "--no-index", f"--color={color}", str(from_path), str(to_path)],
             check=False,
         )
     else:

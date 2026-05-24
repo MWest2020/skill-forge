@@ -232,7 +232,13 @@ def write_lineage(
     if path.exists() and not overwrite:
         raise FileExistsError(f"lineage already exists at {path}")
     data = lineage.model_dump(mode="json")
-    path.write_text(yaml.safe_dump(data, sort_keys=True), encoding="utf-8")
+    # Atomic write: a crash mid-write leaves the old file intact rather
+    # than a truncated lineage.yml that would brick the skill until
+    # manual repair.
+    rendered = yaml.safe_dump(data, sort_keys=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(rendered, encoding="utf-8")
+    tmp.replace(path)
     return path
 
 

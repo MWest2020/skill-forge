@@ -12,14 +12,30 @@ from skill_forge.models import Iteration, Lineage
 from skill_forge.storage import filesystem as storage
 
 
+class PartialMigrationError(Exception):
+    """Skill is in an inconsistent half-migrated state — fix manually."""
+
+
 def migrate_one(root: Path, slug: str, *, draft: bool, dry_run: bool = False) -> bool:
     """Migrate one skill. Returns True if migrated, False if already done or absent."""
     base = root / "skills" / "_draft" / slug if draft else root / "skills" / slug
     skill_md = base / "SKILL.md"
     lineage_yml = base / "lineage.yml"
+    iter_dir = base / "iterations"
+    iterations_glob = list(iter_dir.glob("v*-*.md")) if iter_dir.is_dir() else []
     if not skill_md.is_file():
         return False
-    if lineage_yml.is_file():
+    # Detect partial state: lineage XOR iterations. Either both present
+    # (already migrated) or both absent (needs migration).
+    has_lineage = lineage_yml.is_file()
+    has_iterations = bool(iterations_glob)
+    if has_lineage != has_iterations:
+        raise PartialMigrationError(
+            f"{base} is partially migrated "
+            f"(lineage.yml: {has_lineage}, iterations/v1: {has_iterations}). "
+            f"Resolve manually before re-running migrate."
+        )
+    if has_lineage:
         return False  # already migrated
     if dry_run:
         return True
