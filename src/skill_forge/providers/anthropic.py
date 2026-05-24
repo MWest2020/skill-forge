@@ -1,12 +1,88 @@
-"""Anthropic implementation of LLMProvider (change #2)."""
+"""Anthropic implementation of LLMProvider.
+
+Spec: openspec/changes/add-extraction-pipeline/specs/llm-provider/spec.md
+"""
 
 from __future__ import annotations
 
-from .base import LLMProvider
+import re
+from typing import Any, cast
+
+import anthropic
+from anthropic.types import (
+    MessageParam,
+    TextBlockParam,
+    ToolChoiceToolParam,
+    ToolParam,
+)
+from pydantic import ValidationError
+
+from ._prompts import EMIT_DRAFT_TOOL, EXTRACTION_SYSTEM_PROMPT
+from .base import DistilledDraft, LLMProvider, LLMProviderError
+
+MAX_SOURCE_CHARS = 180_000
+_API_KEY_RE = re.compile(r"sk-ant-[A-Za-z0-9_-]+")
 
 
 class AnthropicProvider(LLMProvider):
-    """Calls the Claude API. SDK dependency added in change #2."""
+    """Calls the Claude API once per `extract_draft`.
 
-    def complete(self, prompt: str, *, system: str | None = None) -> str:
-        raise NotImplementedError("AnthropicProvider.complete: implemented in change #2")
+    The extraction system prompt carries `cache_control: ephemeral`. The prompt
+    is small today (well below the cacheable minimum on Opus 4.7), so the marker
+    won't fire yet — it's there so caching kicks in automatically if the prompt
+    grows or we move to a model with a lower threshold (Sonnet 4.6: 2048 tokens).
+    """
+
+    def __init__(
+        self,
+        *,
+        api_key: str | None = None,
+        model: str = "claude-opus-4-7",
+        max_tokens: int = 4096,
+    ) -> None:
+        kwargs: dict[str, Any] = {"api_key": api_key} if api_key else {}
+        self._client = anthropic.Anthropic(**kwargs)
+        self._model = model
+        self._max_tokens = max_tokens
+
+    def extract_draft(self, *, source_url: str, source_text: str) -> DistilledDraft:
+        if len(source_text) > MAX_SOURCE_CHARS:
+            source_text = source_text[:MAX_SOURCE_CHARS]
+        user_content = f"Source URL: {source_url}\n\n---\n\n{source_text}"
+
+        system_block: TextBlockParam = {
+            "type": "text",
+            "text": EXTRACTION_SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral"},
+        }
+        tool = cast(ToolParam, EMIT_DRAFT_TOOL)
+        tool_choice: ToolChoiceToolParam = {"type": "tool", "name": "emit_draft"}
+        user_msg: MessageParam = {"role": "user", "content": user_content}
+
+        try:
+            response = self._client.messages.create(
+                model=self._model,
+                max_tokens=self._max_tokens,
+                system=[system_block],
+                tools=[tool],
+                tool_choice=tool_choice,
+                messages=[user_msg],
+            )
+        except anthropic.APIError as exc:
+            raise LLMProviderError(_redact(str(exc))) from exc
+
+        for block in response.content:
+            if block.type == "tool_use" and block.name == "emit_draft":
+                try:
+                    return DistilledDraft.model_validate(block.input)
+                except ValidationError as exc:
+                    raise LLMProviderError(
+                        f"emit_draft input failed validation: {exc}"
+                    ) from exc
+
+        raise LLMProviderError("model did not emit an emit_draft tool call")
+
+
+def _redact(message: str) -> str:
+    """Strip any sk-ant-... key fragments from error messages."""
+    return _API_KEY_RE.sub("sk-ant-***", message)
