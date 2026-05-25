@@ -745,6 +745,10 @@ def peer_add(
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(f"Added peer: {name} → {url} (trust: {trust})")
+    typer.echo(
+        "  Note: peer identity (instance ID + pubkey) is fetched on first pull "
+        "and pinned via TOFU. Verify out-of-band before pulling sensitive skills."
+    )
 
 
 @peer_app.command(name="list")

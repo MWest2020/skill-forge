@@ -33,8 +33,13 @@ def _skill(name: str = "demo") -> Skill:
 
 
 def _seed_promoted(tmp_path: Path, *names: str) -> None:
+    """Seed PUBLIC skills so they show up in resources/list."""
     for name in names:
-        fs.write_skill(tmp_path, _skill(name), draft=False)
+        fs.write_skill(
+            tmp_path,
+            _skill(name).model_copy(update={"visibility": "public"}),
+            draft=False,
+        )
 
 
 def _req(method: str, params: dict | None = None, req_id: int = 1) -> dict:
@@ -56,8 +61,15 @@ def test_initialize_response(tmp_path: Path) -> None:
 
 
 def test_resources_list_returns_promoted(tmp_path: Path) -> None:
-    _seed_promoted(tmp_path, "alpha", "beta")
+    """resources/list filters to public-visibility live skills."""
+    pub = _skill("alpha")
+    fs.write_skill(tmp_path, pub.model_copy(update={"visibility": "public"}), draft=False)
+    fs.write_skill(tmp_path, pub.model_copy(update={"name": "beta", "visibility": "public"}), draft=False)
+    # Private + unlisted shouldn't be enumerable
+    fs.write_skill(tmp_path, pub.model_copy(update={"name": "secret"}), draft=False)  # default private
+    fs.write_skill(tmp_path, pub.model_copy(update={"name": "hidden", "visibility": "unlisted"}), draft=False)
     fs.write_skill(tmp_path, _skill("draft-only"), draft=True)
+
     response = dispatch(tmp_path, _req("resources/list"))
     assert response is not None
     uris = sorted(r["uri"] for r in response["result"]["resources"])
@@ -65,7 +77,9 @@ def test_resources_list_returns_promoted(tmp_path: Path) -> None:
 
 
 def test_resources_read_returns_body(tmp_path: Path) -> None:
-    _seed_promoted(tmp_path, "alpha")
+    # Make the skill explicitly public so the read path returns it.
+    pub = _skill("alpha").model_copy(update={"visibility": "public"})
+    fs.write_skill(tmp_path, pub, draft=False)
     response = dispatch(
         tmp_path,
         _req("resources/read", {"uri": "skill-forge://skill/alpha"}),

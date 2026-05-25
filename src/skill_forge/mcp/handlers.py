@@ -83,13 +83,18 @@ def _handle(root: Path, method: str, params: dict[str, Any]) -> dict[str, Any]:
 
 
 def _list_resources(root: Path) -> list[dict[str, str]]:
+    """List skills visible to MCP clients. Excludes drafts AND non-public
+    skills — `unlisted` is callable-by-slug but not enumerable, matching
+    federation/manifest semantics."""
     out: list[dict[str, str]] = []
     for entry in storage.list_skills(root):
         if entry.draft:
-            continue  # drafts are work-in-progress; consumers shouldn't see them
+            continue
         try:
             skill = storage.read_skill(root, entry.slug)
         except (FileNotFoundError, ValueError):
+            continue
+        if skill.visibility != "public":
             continue
         out.append({
             "uri": f"{RESOURCE_PREFIX}{entry.slug}",

@@ -153,8 +153,14 @@ def _ensure_peer_identity(root: Path, peer: Peer) -> Peer:
         return peer
     iid, pem = fetch_peer_info(peer)
     peer = peer.model_copy(update={"instance_id": iid, "public_key_pem": pem})
-    # Persist back into peers.yml.
+    # Persist back into peers.yml — but only if the peer still exists there.
+    # If the user removed it between pull start and now, don't silently
+    # re-add a peer the user explicitly removed.
     peers = read_peers(root)
+    if not any(p.name == peer.name for p in peers.peers):
+        raise PullError(
+            f"peer {peer.name!r} was removed while pulling; re-add it and retry"
+        )
     peers.peers = [peer if p.name == peer.name else p for p in peers.peers]
     write_peers(root, peers)
     return peer
