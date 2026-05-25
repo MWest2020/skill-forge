@@ -238,7 +238,19 @@ def _build_provider(name: str, cfg: dict[str, object]) -> LLMProvider:
             binary=str(cc.get("binary", "claude")),
             timeout=float(cc.get("timeout_s", 120)),
         )
-    raise ValueError(f"unknown provider: {name!r} (expected 'anthropic' or 'claude_code')")
+    if name == "ollama":
+        from skill_forge.providers.ollama import OllamaProvider
+
+        ol = cfg.get("ollama", {}) or {}
+        assert isinstance(ol, dict)
+        return OllamaProvider(
+            host=ol.get("host"),
+            model=str(ol.get("model", "llama3.1")),
+            timeout=float(ol.get("timeout_s", 120)),
+        )
+    raise ValueError(
+        f"unknown provider: {name!r} (expected 'anthropic', 'claude_code', or 'ollama')"
+    )
 
 
 def _run_extract(

@@ -36,8 +36,11 @@ claude_code:
   timeout_s: 120
 
 ollama:
-  host_env: OLLAMA_HOST
+  # Falls back to $OLLAMA_HOST env var if `host` is unset; final default is
+  # http://localhost:11434.
+  host: ~
   model: llama3.1
+  timeout_s: 120
 
 # --- Discovery ----------------------------------------------------------------
 discovery:
