@@ -13,6 +13,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+VISIBILITY_VALUES = ("private", "unlisted", "public")
 SOURCE_ID_RE = re.compile(r"^src-[a-f0-9]{6}$")
 SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
 RUN_ID_RE = re.compile(r"^run-\d{4}-\d{2}-\d{2}-\d{3}$")
@@ -63,6 +64,7 @@ class Skill(BaseModel):
     body: str
     origin: str | None = None
     signature: str | None = None
+    visibility: str = "private"
 
     @field_validator("name")
     @classmethod
@@ -99,6 +101,15 @@ class Skill(BaseModel):
             return v
         if not SIGNATURE_B64_RE.fullmatch(v):
             raise ValueError("Skill.signature must be base64-encoded ASCII")
+        return v
+
+    @field_validator("visibility")
+    @classmethod
+    def _visibility_allowed(cls, v: str) -> str:
+        if v not in VISIBILITY_VALUES:
+            raise ValueError(
+                f"Skill.visibility must be one of {VISIBILITY_VALUES}, got {v!r}"
+            )
         return v
 
     @field_validator("body")

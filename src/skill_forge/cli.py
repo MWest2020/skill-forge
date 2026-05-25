@@ -715,6 +715,112 @@ serve_app = typer.Typer(
 )
 app.add_typer(serve_app, name="serve")
 
+peer_app = typer.Typer(
+    name="peer",
+    help="Manage federation peers and pull skills from them.",
+    no_args_is_help=True,
+)
+app.add_typer(peer_app, name="peer")
+
+
+@peer_app.command(name="add")
+def peer_add(
+    name: str,
+    url: str,
+    token: Annotated[
+        str | None, typer.Option("--token", help="Bearer token for peer's MCP HTTP.")
+    ] = None,
+    trust: Annotated[
+        str, typer.Option("--trust", help="reference-only | review-queue")
+    ] = "reference-only",
+    root: RootOpt = None,
+) -> None:
+    """Register a federation peer."""
+    from skill_forge.federation import Peer, PeerError, add_peer
+
+    base = _resolve_root(root)
+    try:
+        add_peer(base, Peer(name=name, url=url, token=token, trust_mode=trust))
+    except (PeerError, ValueError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Added peer: {name} → {url} (trust: {trust})")
+
+
+@peer_app.command(name="list")
+def peer_list(root: RootOpt = None) -> None:
+    """Show known peers."""
+    from skill_forge.federation import list_peers
+
+    base = _resolve_root(root)
+    peers = list_peers(base)
+    if not peers:
+        typer.echo("No peers registered. Add one with: forge peer add <name> <url>")
+        return
+    for peer in peers:
+        iid = peer.instance_id or "(not yet contacted)"
+        typer.echo(f"  {peer.name:<20} {peer.url}  {iid}  [{peer.trust_mode}]")
+
+
+@peer_app.command(name="remove")
+def peer_remove(name: str, root: RootOpt = None) -> None:
+    """Drop a peer from the registry."""
+    from skill_forge.federation import remove_peer
+
+    base = _resolve_root(root)
+    if remove_peer(base, name):
+        typer.echo(f"Removed peer: {name}")
+    else:
+        typer.echo(f"No peer named {name!r}", err=True)
+        raise typer.Exit(code=1)
+
+
+@peer_app.command(name="skills")
+def peer_skills(name: str, root: RootOpt = None) -> None:
+    """List skills a peer is willing to share."""
+    from skill_forge.federation import PullError, fetch_manifest, list_peers
+
+    base = _resolve_root(root)
+    peer = next((p for p in list_peers(base) if p.name == name), None)
+    if peer is None:
+        typer.echo(f"No peer named {name!r}", err=True)
+        raise typer.Exit(code=1)
+    try:
+        skills = fetch_manifest(peer)
+    except PullError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    if not skills:
+        typer.echo(f"{name} has no public skills.")
+        return
+    for s in skills:
+        score = s.get("judge_score")
+        score_s = f"{score:.2f}" if isinstance(score, int | float) else "—"
+        typer.echo(f"  {s['slug']:<35} score={score_s}  {s.get('description', '')[:60]}")
+
+
+@peer_app.command(name="pull")
+def peer_pull(
+    name: str,
+    slug: str,
+    root: RootOpt = None,
+) -> None:
+    """Pull one skill by slug from a peer; verify signature; land as draft."""
+    from skill_forge.federation import PullError, list_peers, pull_skill
+
+    base = _resolve_root(root)
+    peer = next((p for p in list_peers(base) if p.name == name), None)
+    if peer is None:
+        typer.echo(f"No peer named {name!r}", err=True)
+        raise typer.Exit(code=1)
+    try:
+        skill = pull_skill(base, peer, slug)
+    except PullError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Pulled: {skill.name} (origin: {skill.origin})")
+    typer.echo(f"  Landed at: skills/_draft/{skill.name}/SKILL.md")
+
 
 @serve_app.command(name="mcp")
 def serve_mcp(

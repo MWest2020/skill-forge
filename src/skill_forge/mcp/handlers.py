@@ -73,6 +73,12 @@ def _handle(root: Path, method: str, params: dict[str, Any]) -> dict[str, Any]:
         return {"resources": _list_resources(root)}
     if method == "resources/read":
         return _read_resource(root, params)
+    if method == "federation/peer-info":
+        return _federation_peer_info(root)
+    if method == "federation/manifest":
+        return _federation_manifest(root)
+    if method == "federation/skill":
+        return _federation_skill(root, params)
     raise McpError(-32601, f"method not found: {method}")
 
 
@@ -92,6 +98,67 @@ def _list_resources(root: Path) -> list[dict[str, str]]:
             "mimeType": RESOURCE_MIME,
         })
     return out
+
+
+def _federation_peer_info(root: Path) -> dict[str, Any]:
+    """Return this instance's ID + public key (PEM). Read by peers on first contact."""
+    from cryptography.hazmat.primitives import serialization
+
+    from skill_forge.identity import get_or_create
+
+    home = _identity_home()
+    identity = get_or_create(home)
+    pem = identity.public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
+    return {"instance_id": identity.instance_id, "public_key_pem": pem}
+
+
+def _federation_manifest(root: Path) -> dict[str, Any]:
+    """Return only `public` skills with their basic metadata. Private + unlisted hidden."""
+    out: list[dict[str, Any]] = []
+    for entry in storage.list_skills(root):
+        if entry.draft:
+            continue
+        try:
+            skill = storage.read_skill(root, entry.slug)
+        except (FileNotFoundError, ValueError):
+            continue
+        if skill.visibility != "public":
+            continue
+        out.append({
+            "slug": skill.name,
+            "description": skill.description,
+            "judge_score": skill.judge_score,
+            "origin": skill.origin,
+        })
+    return {"skills": out}
+
+
+def _federation_skill(root: Path, params: dict[str, Any]) -> dict[str, Any]:
+    """Return one skill's full record (frontmatter + body + signature) by slug.
+
+    Honors visibility: `private` never served, `unlisted` served if asked
+    by exact slug, `public` always served.
+    """
+    slug = params.get("slug")
+    if not isinstance(slug, str) or not SLUG_RE.fullmatch(slug):
+        raise McpError(-32602, f"invalid slug: {slug!r}")
+    try:
+        skill = storage.read_skill(root, slug)
+    except FileNotFoundError as exc:
+        raise McpError(-32602, f"unknown skill: {slug!r}") from exc
+    if skill.visibility == "private":
+        raise McpError(-32602, f"unknown skill: {slug!r}")
+    return {"skill": skill.model_dump(mode="json")}
+
+
+def _identity_home() -> Path:
+    import os
+
+    env = os.environ.get("SKILL_FORGE_HOME")
+    return Path(env) if env else Path.home() / ".config" / "skill-forge"
 
 
 def _read_resource(root: Path, params: dict[str, Any]) -> dict[str, Any]:
