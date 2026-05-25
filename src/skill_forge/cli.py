@@ -243,8 +243,10 @@ def _build_provider(name: str, cfg: dict[str, object]) -> LLMProvider:
 
         ol = cfg.get("ollama", {}) or {}
         assert isinstance(ol, dict)
+        host_raw = ol.get("host")
+        host: str | None = host_raw if isinstance(host_raw, str) else None
         return OllamaProvider(
-            host=ol.get("host"),
+            host=host,
             model=str(ol.get("model", "llama3.1")),
             timeout=float(ol.get("timeout_s", 120)),
         )

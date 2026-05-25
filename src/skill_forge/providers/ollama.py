@@ -18,12 +18,12 @@ from skill_forge.models import JudgeFinding, JudgeScore, Skill
 
 from ._judge import (
     build_judge_score,
+    extract_json_object,
     parse_findings,
     serialize_skill_for_judge,
     serialize_skill_for_refine,
 )
 from .base import DistilledDraft, LLMProvider, LLMProviderError
-from .claude_code import _extract_json_object  # reuse tolerant parser
 
 MAX_SOURCE_CHARS = 180_000
 
@@ -108,7 +108,7 @@ class OllamaProvider(LLMProvider):
         content = (envelope.get("message") or {}).get("content")
         if not isinstance(content, str):
             raise LLMProviderError("ollama response missing message.content")
-        parsed = _extract_json_object(content)
+        parsed = extract_json_object(content)
         if parsed is None:
             raise LLMProviderError(
                 f"ollama did not return parseable JSON; first 200 chars: {content.strip()[:200]!r}"

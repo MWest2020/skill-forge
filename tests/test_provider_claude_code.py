@@ -14,7 +14,8 @@ import pytest
 from skill_forge.models import JUDGE_AXES, Skill, SourceRef
 from skill_forge.providers import claude_code as cc_mod
 from skill_forge.providers.base import DistilledDraft, LLMProviderError
-from skill_forge.providers.claude_code import ClaudeCodeProvider, _extract_json_object
+from skill_forge.providers._judge import extract_json_object
+from skill_forge.providers.claude_code import ClaudeCodeProvider
 
 VALID_JSON = (
     '{"name": "demo-skill", "description": "Use this skill when X.", '
@@ -108,28 +109,28 @@ def test_extract_draft_truncates_long_source(monkeypatch: pytest.MonkeyPatch) ->
     assert len(prompt) < 182_000
 
 
-# --- _extract_json_object helper ---------------------------------------------
+# --- extract_json_object helper ---------------------------------------------
 
 
 def test_extract_json_direct() -> None:
-    assert _extract_json_object('{"a": 1}') == {"a": 1}
+    assert extract_json_object('{"a": 1}') == {"a": 1}
 
 
 def test_extract_json_from_prose() -> None:
-    assert _extract_json_object('Sure: {"a": 1, "b": 2} done.') == {"a": 1, "b": 2}
+    assert extract_json_object('Sure: {"a": 1, "b": 2} done.') == {"a": 1, "b": 2}
 
 
 def test_extract_json_fenced() -> None:
-    assert _extract_json_object('```json\n{"a": 1}\n```') == {"a": 1}
+    assert extract_json_object('```json\n{"a": 1}\n```') == {"a": 1}
 
 
 def test_extract_json_none_when_no_object() -> None:
-    assert _extract_json_object("no braces here") is None
+    assert extract_json_object("no braces here") is None
 
 
 def test_extract_json_none_when_array() -> None:
     # Top-level arrays are not valid drafts
-    assert _extract_json_object("[1, 2, 3]") is None
+    assert extract_json_object("[1, 2, 3]") is None
 
 
 # --- judge --------------------------------------------------------------------

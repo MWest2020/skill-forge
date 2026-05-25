@@ -1,9 +1,13 @@
-"""Shared helpers for the judge path — score computation + skill serialization.
+"""Shared helpers for the judge/refine paths — score computation,
+skill serialization, and tolerant JSON-out-of-LLM extraction.
 
-Used by both AnthropicProvider.judge and ClaudeCodeProvider.judge.
+Used by all three LLMProvider implementations.
 """
 
 from __future__ import annotations
+
+import json
+from typing import Any
 
 from skill_forge.models import JUDGE_AXES, JudgeFinding, JudgeScore, Skill
 
@@ -21,6 +25,28 @@ def build_judge_score(axes: dict[str, float], weights: dict[str, float]) -> Judg
 
 def parse_findings(raw: list[dict[str, str]]) -> list[JudgeFinding]:
     return [JudgeFinding(**item) for item in raw]
+
+
+def extract_json_object(text: str) -> dict[str, Any] | None:
+    """Parse a JSON object out of LLM stdout. Tolerates fences and prose."""
+    stripped = text.strip()
+    if not stripped:
+        return None
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        parsed = None
+    if isinstance(parsed, dict):
+        return parsed
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None
+    try:
+        parsed = json.loads(stripped[start : end + 1])
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
 
 
 def serialize_skill_for_refine(

@@ -16,6 +16,7 @@ from skill_forge.models import JudgeFinding, JudgeScore, Skill
 
 from ._judge import (
     build_judge_score,
+    extract_json_object,
     parse_findings,
     serialize_skill_for_judge,
     serialize_skill_for_refine,
@@ -80,7 +81,7 @@ class ClaudeCodeProvider(LLMProvider):
             stderr = (result.stderr or "").strip()[:500]
             raise LLMProviderError(f"`{self._binary} -p` exited {result.returncode}: {stderr}")
 
-        data = _extract_json_object(result.stdout)
+        data = extract_json_object(result.stdout)
         if data is None:
             preview = (result.stdout or "").strip()[:200]
             raise LLMProviderError(
@@ -138,7 +139,7 @@ class ClaudeCodeProvider(LLMProvider):
         if result.returncode != 0:
             stderr = (result.stderr or "").strip()[:500]
             raise LLMProviderError(f"`{self._binary} -p` exited {result.returncode}: {stderr}")
-        return _extract_json_object(result.stdout)
+        return extract_json_object(result.stdout)
 
 
 _REFINE_PROMPT_HEADER = """\
@@ -211,25 +212,4 @@ def _parse_judge_payload(
     return score, findings
 
 
-def _extract_json_object(text: str) -> dict[str, Any] | None:
-    """Parse a JSON object out of CLI stdout — tolerates fences and prose."""
-    stripped = text.strip()
-    if not stripped:
-        return None
-    # Direct parse: clean JSON only.
-    try:
-        parsed = json.loads(stripped)
-    except json.JSONDecodeError:
-        parsed = None
-    if isinstance(parsed, dict):
-        return parsed
-    # Fallback: take the first balanced {...} slice.
-    start = stripped.find("{")
-    end = stripped.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        return None
-    try:
-        parsed = json.loads(stripped[start : end + 1])
-    except json.JSONDecodeError:
-        return None
-    return parsed if isinstance(parsed, dict) else None
+# extract_json_object now lives in _judge.py (shared across providers).
