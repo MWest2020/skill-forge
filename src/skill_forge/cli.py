@@ -77,9 +77,104 @@ def _load_identity(home: Path | None) -> Identity:
 
 
 @app.command()
-def discover(topic: str) -> None:
-    """Find candidate sources for a topic and filter by license."""
-    raise NotImplementedError("discover: implemented in change #4")
+def discover(
+    topic: str,
+    limit: Annotated[int, typer.Option("--limit", help="Max candidates to return.")] = 10,
+    root: RootOpt = None,
+) -> None:
+    """Find candidate GitHub sources for a topic and classify their licenses."""
+    from skill_forge.discovery.github import GitHubSearchError, search_repos
+    from skill_forge.discovery.license_check import classify_spdx
+
+    base = _resolve_root(root)
+    try:
+        candidates = search_repos(topic, limit=limit)
+    except GitHubSearchError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    blocked_log = base / "discovery_blocked.log"
+    table = Table(title=f"candidates for {topic!r}")
+    table.add_column("Repo", style="bold")
+    table.add_column("License")
+    table.add_column("URL")
+    kept = 0
+    for cand in candidates:
+        bucket = classify_spdx(cand.spdx_license)
+        if bucket == "forbidden":
+            _append_blocked(blocked_log, cand.html_url, cand.spdx_license or "none")
+            continue
+        kept += 1
+        badge = {
+            "permissive": "[green]permissive[/green]",
+            "copyleft": "[yellow]copyleft[/yellow]",
+            "restrictive": "[red]restrictive[/red]",
+        }[bucket]
+        table.add_row(cand.full_name, f"{badge} ({cand.spdx_license})", cand.html_url)
+    Console().print(table)
+    typer.echo(
+        f"\n{kept}/{len(candidates)} kept; {len(candidates) - kept} blocked "
+        f"(see {blocked_log.name})."
+    )
+
+
+def _append_blocked(log_path: Path, url: str, reason: str) -> None:
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    from datetime import UTC
+    from datetime import datetime as _dt
+
+    line = f"{_dt.now(UTC).isoformat()}\t{url}\t{reason}\n"
+    with log_path.open("a", encoding="utf-8") as fh:
+        fh.write(line)
+
+
+@app.command()
+def run(
+    topic: str,
+    max_candidates: Annotated[
+        int, typer.Option("--max-candidates", help="Cap on candidates to extract.")
+    ] = 3,
+    root: RootOpt = None,
+) -> None:
+    """Discover top-N candidates for a topic, extract each, judge each."""
+    from skill_forge.discovery.github import GitHubSearchError, search_repos
+    from skill_forge.discovery.license_check import classify_spdx
+
+    base = _resolve_root(root)
+    cfg = load_config(base)
+    provider_name = cfg["providers"]["extract"]
+    if provider_name == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
+        typer.echo("ANTHROPIC_API_KEY not set.", err=True)
+        raise typer.Exit(code=2)
+    try:
+        provider = _build_provider(provider_name, cfg)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    try:
+        candidates = search_repos(topic, limit=max_candidates * 3)
+    except GitHubSearchError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    allowed = [
+        c for c in candidates if classify_spdx(c.spdx_license) != "forbidden"
+    ][:max_candidates]
+    if not allowed:
+        typer.echo(f"No license-clean candidates found for {topic!r}.", err=True)
+        raise typer.Exit(code=1)
+
+    identity = _load_identity(home=None)
+    for cand in allowed:
+        typer.echo(f"\n--- {cand.full_name} ({cand.spdx_license}) ---")
+        try:
+            _run_extract(
+                cand.html_url,
+                root=base, follow_next=False, max_pages=DEFAULT_MAX_PAGES,
+                provider=provider, identity=identity,
+            )
+        except typer.Exit as exc:
+            typer.echo(f"  extract failed (exit {exc.exit_code}); continuing.", err=True)
 
 
 @app.command()
@@ -301,12 +396,6 @@ def _print_judge_result(
             typer.echo(f"  [{f.severity}] {f.axis}: {f.observation}")
     verdict = "ready to promote" if score.total >= total_min else "stays in draft"
     typer.echo(f"\nResult: {verdict}.")
-
-
-@app.command()
-def run(topic: str) -> None:
-    """Run the full pipeline: discover -> extract -> judge -> promote."""
-    raise NotImplementedError("run: implemented in change #4")
 
 
 @app.command()
