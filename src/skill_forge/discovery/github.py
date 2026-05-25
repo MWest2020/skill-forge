@@ -6,8 +6,6 @@ import json
 import subprocess
 from dataclasses import dataclass
 
-from skill_forge.providers.base import LLMProviderError
-
 
 @dataclass(frozen=True)
 class GitHubCandidate:
@@ -63,5 +61,4 @@ def search_repos(topic: str, *, limit: int = 10) -> list[GitHubCandidate]:
     return candidates
 
 
-# Silence the unused-import warning in CLI by re-exporting.
-__all__ = ["GitHubCandidate", "GitHubSearchError", "search_repos", "LLMProviderError"]
+__all__ = ["GitHubCandidate", "GitHubSearchError", "search_repos"]

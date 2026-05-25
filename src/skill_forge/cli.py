@@ -119,13 +119,16 @@ def discover(
 
 
 def _append_blocked(log_path: Path, url: str, reason: str) -> None:
+    """One JSONL line per blocked candidate. JSON escapes guarantee
+    parseability regardless of what's in url/reason."""
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    import json as _json
     from datetime import UTC
     from datetime import datetime as _dt
 
-    line = f"{_dt.now(UTC).isoformat()}\t{url}\t{reason}\n"
+    entry = {"ts": _dt.now(UTC).isoformat(), "url": url, "reason": reason}
     with log_path.open("a", encoding="utf-8") as fh:
-        fh.write(line)
+        fh.write(_json.dumps(entry) + "\n")
 
 
 @app.command()
@@ -174,6 +177,9 @@ def run(
                 provider=provider, identity=identity,
             )
         except typer.Exit as exc:
+            # Code 2 = config/auth broken → don't waste budget on remaining candidates.
+            if exc.exit_code == 2:
+                raise
             typer.echo(f"  extract failed (exit {exc.exit_code}); continuing.", err=True)
 
 

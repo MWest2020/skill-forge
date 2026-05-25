@@ -145,8 +145,11 @@ def test_cli_discover_prints_table(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert "good/permissive" in result.output
     assert "bad/unknown" not in result.output  # filtered out
     assert "1/2 kept" in result.output
-    blocked = (tmp_path / "discovery_blocked.log").read_text()
-    assert "bad/unknown" in blocked
+    blocked_lines = (tmp_path / "discovery_blocked.log").read_text().splitlines()
+    assert len(blocked_lines) == 1
+    blocked_entry = json.loads(blocked_lines[0])
+    assert blocked_entry["url"] == "https://github.com/bad/unknown"
+    assert blocked_entry["reason"] == "none"
 
 
 def test_cli_discover_gh_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
