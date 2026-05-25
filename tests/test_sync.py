@@ -110,12 +110,10 @@ def test_unsync_removes_synced_files(tmp_path: Path) -> None:
     _seed_promoted(tmp_path)
     target_dir = tmp_path / "out"
     sync_target(tmp_path, target="claude-code", target_dir=target_dir, mode="symlink")
-    removed = unsync_target(tmp_path, target="claude-code")
-    assert removed == 1
+    removed, expected = unsync_target(tmp_path, target="claude-code")
+    assert (removed, expected) == (1, 1)
     assert not (target_dir / "demo" / "SKILL.md").exists()
-    # Empty slug dir was cleaned up
     assert not (target_dir / "demo").exists()
-    # Manifest is gone
     assert not (tmp_path / "sync" / "claude-code.yml").exists()
 
 
@@ -123,15 +121,34 @@ def test_unsync_tolerates_missing_files(tmp_path: Path) -> None:
     _seed_promoted(tmp_path)
     target_dir = tmp_path / "out"
     sync_target(tmp_path, target="claude-code", target_dir=target_dir, mode="copy")
-    # User manually deletes one
     (target_dir / "demo" / "SKILL.md").unlink()
-    # Unsync should not error
-    removed = unsync_target(tmp_path, target="claude-code")
+    removed, expected = unsync_target(tmp_path, target="claude-code")
     assert removed == 0
+    assert expected == 1  # the manifest still expected one
 
 
 def test_unsync_no_manifest_returns_zero(tmp_path: Path) -> None:
-    assert unsync_target(tmp_path, target="claude-code") == 0
+    assert unsync_target(tmp_path, target="claude-code") == (0, 0)
+
+
+def test_sync_refuses_system_dirs(tmp_path: Path) -> None:
+    _seed_promoted(tmp_path)
+    for path in (Path("/etc"), Path("/usr")):
+        with pytest.raises(SyncError, match="system directory"):
+            sync_target(tmp_path, target="claude-code", target_dir=path, mode="copy")
+
+
+def test_sync_refuses_home_parent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A typo like --target-dir / on macOS shouldn't smash /Users either."""
+    fake_home = tmp_path / "fake-home" / "user"
+    fake_home.mkdir(parents=True)
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_home))
+    _seed_promoted(tmp_path)
+    with pytest.raises(SyncError, match="parent of your home"):
+        sync_target(
+            tmp_path, target="claude-code",
+            target_dir=tmp_path / "fake-home", mode="copy",
+        )
 
 
 # --- CLI ---------------------------------------------------------------------

@@ -84,11 +84,16 @@ def sync_target(
     return manifest
 
 
-def unsync_target(root: Path, *, target: str) -> int:
-    """Remove every entry from the previous sync manifest. Returns count removed."""
+def unsync_target(root: Path, *, target: str) -> tuple[int, int]:
+    """Remove every entry from the previous sync manifest.
+
+    Returns (removed, expected) — the latter lets callers tell users how
+    many files were already gone vs how many we actually unlinked.
+    """
     manifest = _read_manifest(root, target)
     if manifest is None:
-        return 0
+        return 0, 0
+    expected = len(manifest.entries)
     removed = 0
     for entry in manifest.entries:
         path = Path(entry.target_path)
@@ -96,17 +101,15 @@ def unsync_target(root: Path, *, target: str) -> int:
             if path.is_symlink() or path.is_file():
                 path.unlink()
                 removed += 1
-            # Remove the {slug}/ parent if it's empty after our SKILL.md is gone.
             parent = path.parent
             if parent.is_dir() and not any(parent.iterdir()):
                 parent.rmdir()
         except OSError:
             continue
-    # Drop the manifest file itself so future sync starts clean.
     manifest_path = root / "sync" / f"{target}.yml"
     if manifest_path.exists():
         manifest_path.unlink()
-    return removed
+    return removed, expected
 
 
 def _resolve_target_dir(target: str, override: Path | None) -> Path:
@@ -115,13 +118,24 @@ def _resolve_target_dir(target: str, override: Path | None) -> Path:
     return Path.home() / KNOWN_TARGETS[target]
 
 
+_REFUSED_SYSTEM_PATHS = {
+    "/", "/etc", "/usr", "/var", "/bin", "/sbin", "/boot", "/root", "/dev", "/proc",
+}
+
+
 def _refuse_dangerous_dir(path: Path) -> None:
-    """Refuse paths that look like a user's home, /, or some other footgun."""
+    """Refuse paths likely to be footguns: home, system roots, parents of $HOME."""
     resolved = path.resolve()
-    if resolved == Path.home().resolve():
+    home = Path.home().resolve()
+    if resolved == home:
         raise SyncError(f"refusing to sync into your home directory ({resolved})")
-    if str(resolved) in ("/", os.sep):
-        raise SyncError(f"refusing to sync into root ({resolved})")
+    if str(resolved) in _REFUSED_SYSTEM_PATHS:
+        raise SyncError(f"refusing to sync into a system directory ({resolved})")
+    # Refuse ancestors of $HOME (e.g. /home, /Users on macOS).
+    if resolved in home.parents:
+        raise SyncError(
+            f"refusing to sync into a parent of your home directory ({resolved})"
+        )
     if resolved.exists() and not resolved.is_dir():
         raise SyncError(f"{resolved} exists and is not a directory")
 
@@ -140,7 +154,10 @@ def _list_promoted_slugs(root: Path) -> list[str]:
 
 
 def _place(src: Path, dst: Path, *, mode: str) -> None:
-    if dst.exists() or dst.is_symlink():
+    # Handle the weird case where someone mkdir'd `SKILL.md/` at the target.
+    if dst.is_dir() and not dst.is_symlink():
+        shutil.rmtree(dst)
+    elif dst.exists() or dst.is_symlink():
         dst.unlink()
     if mode == "symlink":
         dst.symlink_to(src)

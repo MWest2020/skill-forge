@@ -685,11 +685,13 @@ def sync(
     base = _resolve_root(root)
     if unsync:
         try:
-            removed = unsync_target(base, target=target)
+            removed, expected = unsync_target(base, target=target)
         except SyncError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(code=1) from exc
-        typer.echo(f"Unsynced: {removed} skill(s) removed for target {target!r}")
+        typer.echo(
+            f"Unsynced: {removed} of {expected} skill(s) removed for target {target!r}"
+        )
         return
     try:
         manifest = sync_target(base, target=target, target_dir=target_dir, mode=mode)
