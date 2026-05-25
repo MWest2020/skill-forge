@@ -9,10 +9,14 @@ Spec: openspec/changes/add-mcp-server-mode/proposal.md
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
+from skill_forge.models import SLUG_RE
 from skill_forge.storage import filesystem as storage
+
+log = logging.getLogger(__name__)
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_NAME = "skill-forge"
@@ -46,6 +50,9 @@ def dispatch(root: Path, request: dict[str, Any]) -> dict[str, Any] | None:
     except McpError:
         raise
     except Exception as exc:  # noqa: BLE001
+        # Log the full traceback for local debugging; wire only carries the
+        # message so we don't leak internals to remote clients.
+        log.exception("MCP handler error in %s", method)
         raise McpError(-32603, f"internal error in {method}: {exc}") from exc
 
     if is_notification:
@@ -92,6 +99,11 @@ def _read_resource(root: Path, params: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(uri, str) or not uri.startswith(RESOURCE_PREFIX):
         raise McpError(-32602, f"uri must start with {RESOURCE_PREFIX}")
     slug = uri[len(RESOURCE_PREFIX):]
+    # Validate against the canonical slug shape — anything else (path
+    # traversal, draft-tree probing, .iterations/ access) gets rejected
+    # before we touch the filesystem.
+    if not SLUG_RE.fullmatch(slug):
+        raise McpError(-32602, f"invalid slug in uri: {uri}")
     skill_md = root / "skills" / slug / "SKILL.md"
     if not skill_md.is_file():
         raise McpError(-32602, f"unknown resource: {uri}")

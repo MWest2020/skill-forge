@@ -8,6 +8,7 @@ response. Bearer auth required when binding to a non-loopback host.
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import sys
@@ -83,7 +84,10 @@ def _build_handler(
                 return
             if env_token is not None:
                 auth = self.headers.get("Authorization", "")
-                if auth != f"Bearer {env_token}":
+                expected = f"Bearer {env_token}"
+                # Constant-time comparison removes any timing-oracle surface
+                # if the server is ever exposed beyond loopback.
+                if not hmac.compare_digest(auth, expected):
                     self._error(401, "unauthorized")
                     return
             length = int(self.headers.get("Content-Length") or 0)

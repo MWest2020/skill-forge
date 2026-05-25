@@ -90,6 +90,20 @@ def test_resources_read_bad_uri_prefix(tmp_path: Path) -> None:
         dispatch(tmp_path, _req("resources/read", {"uri": "https://x"}))
 
 
+def test_resources_read_rejects_path_traversal(tmp_path: Path) -> None:
+    """The slug must match SLUG_RE — no ../ or _draft/ probing allowed."""
+    for bad in (
+        "skill-forge://skill/../../etc/passwd",
+        "skill-forge://skill/../secrets",
+        "skill-forge://skill/_draft/some-draft",
+        "skill-forge://skill/foo/.iterations/v1",
+        "skill-forge://skill/UPPER",
+        "skill-forge://skill/",
+    ):
+        with pytest.raises(McpError, match="invalid slug"):
+            dispatch(tmp_path, _req("resources/read", {"uri": bad}))
+
+
 def test_unknown_method(tmp_path: Path) -> None:
     with pytest.raises(McpError, match="method not found"):
         dispatch(tmp_path, _req("tools/list"))
