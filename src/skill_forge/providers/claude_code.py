@@ -6,7 +6,6 @@ openspec/changes/add-claude-code-provider/specs/claude-code-provider/spec.md
 
 from __future__ import annotations
 
-import json
 import subprocess
 from typing import Any
 

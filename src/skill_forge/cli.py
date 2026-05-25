@@ -660,6 +660,52 @@ def diff(
             typer.echo(line, nl=False)
 
 
+@app.command()
+def sync(
+    target: str,
+    target_dir: Annotated[
+        Path | None,
+        typer.Option("--target-dir", help="Override the conventional path for this target."),
+    ] = None,
+    mode: Annotated[
+        str, typer.Option("--mode", help="symlink | copy")
+    ] = "symlink",
+    unsync: Annotated[
+        bool,
+        typer.Option(
+            "--unsync",
+            help="Remove previously-synced skills instead of placing new ones.",
+        ),
+    ] = False,
+    root: RootOpt = None,
+) -> None:
+    """Sync promoted skills into a consumer tool's skills directory."""
+    from skill_forge.sync import KNOWN_TARGETS, SyncError, sync_target, unsync_target
+
+    base = _resolve_root(root)
+    if unsync:
+        try:
+            removed = unsync_target(base, target=target)
+        except SyncError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=1) from exc
+        typer.echo(f"Unsynced: {removed} skill(s) removed for target {target!r}")
+        return
+    try:
+        manifest = sync_target(base, target=target, target_dir=target_dir, mode=mode)
+    except SyncError as exc:
+        typer.echo(str(exc), err=True)
+        if target not in KNOWN_TARGETS:
+            typer.echo(
+                f"  Known targets: {', '.join(sorted(KNOWN_TARGETS))}",
+                err=True,
+            )
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Synced: {len(manifest.entries)} skill(s) → {manifest.target_dir}")
+    typer.echo(f"  Mode: {mode}")
+    typer.echo(f"  Manifest: sync/{target}.yml")
+
+
 @app.command(name="ls")
 def list_skills(root: RootOpt = None) -> None:
     """List all skills (live + draft) with their scores."""

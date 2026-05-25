@@ -13,8 +13,8 @@ import pytest
 
 from skill_forge.models import JUDGE_AXES, Skill, SourceRef
 from skill_forge.providers import claude_code as cc_mod
-from skill_forge.providers.base import DistilledDraft, LLMProviderError
 from skill_forge.providers._judge import extract_json_object
+from skill_forge.providers.base import DistilledDraft, LLMProviderError
 from skill_forge.providers.claude_code import ClaudeCodeProvider
 
 VALID_JSON = (
