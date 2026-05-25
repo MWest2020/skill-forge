@@ -708,6 +708,48 @@ def sync(
     typer.echo(f"  Manifest: sync/{target}.yml")
 
 
+serve_app = typer.Typer(
+    name="serve",
+    help="Run skill-forge as a server (MCP).",
+    no_args_is_help=True,
+)
+app.add_typer(serve_app, name="serve")
+
+
+@serve_app.command(name="mcp")
+def serve_mcp(
+    transport: Annotated[
+        str, typer.Option("--transport", help="stdio | http")
+    ] = "stdio",
+    host: Annotated[str, typer.Option("--host", help="HTTP bind address.")] = "127.0.0.1",
+    port: Annotated[int, typer.Option("--port", help="HTTP bind port.")] = 8765,
+    token: Annotated[
+        str | None,
+        typer.Option(
+            "--token",
+            help="Bearer token for HTTP; falls back to SKILL_FORGE_MCP_TOKEN env var.",
+        ),
+    ] = None,
+    root: RootOpt = None,
+) -> None:
+    """Expose promoted skills as MCP resources (stdio or HTTP)."""
+    from skill_forge.mcp import serve_http, serve_stdio
+
+    base = _resolve_root(root)
+    if transport == "stdio":
+        serve_stdio(base)
+        return
+    if transport == "http":
+        try:
+            serve_http(base, host=host, port=port, token=token)
+        except ValueError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=2) from exc
+        return
+    typer.echo(f"unknown transport {transport!r}; pick 'stdio' or 'http'", err=True)
+    raise typer.Exit(code=2)
+
+
 @app.command(name="ls")
 def list_skills(root: RootOpt = None) -> None:
     """List all skills (live + draft) with their scores."""
