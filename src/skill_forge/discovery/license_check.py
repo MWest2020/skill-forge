@@ -8,18 +8,42 @@ from __future__ import annotations
 import re
 
 _PERMISSIVE = {
-    "MIT", "ISC", "BSD-2-CLAUSE", "BSD-3-CLAUSE", "APACHE-2.0",
-    "CC0-1.0", "CC-BY-4.0", "CC-BY-3.0", "UNLICENSE", "ZLIB",
-    "MIT-0", "0BSD",
+    "MIT",
+    "ISC",
+    "BSD-2-CLAUSE",
+    "BSD-3-CLAUSE",
+    "APACHE-2.0",
+    "CC0-1.0",
+    "CC-BY-4.0",
+    "CC-BY-3.0",
+    "UNLICENSE",
+    "ZLIB",
+    "MIT-0",
+    "0BSD",
 }
 _COPYLEFT = {
-    "GPL-2.0", "GPL-3.0", "LGPL-2.0", "LGPL-2.1", "LGPL-3.0",
-    "AGPL-3.0", "MPL-1.1", "MPL-2.0", "EPL-1.0", "EPL-2.0",
-    "CDDL-1.0", "CDDL-1.1", "CC-BY-SA-4.0", "CC-BY-SA-3.0",
-    "EUPL-1.2", "EUPL-1.1",
+    "GPL-2.0",
+    "GPL-3.0",
+    "LGPL-2.0",
+    "LGPL-2.1",
+    "LGPL-3.0",
+    "AGPL-3.0",
+    "MPL-1.1",
+    "MPL-2.0",
+    "EPL-1.0",
+    "EPL-2.0",
+    "CDDL-1.0",
+    "CDDL-1.1",
+    "CC-BY-SA-4.0",
+    "CC-BY-SA-3.0",
+    "EUPL-1.2",
+    "EUPL-1.1",
 }
 _RESTRICTIVE = {
-    "CC-BY-NC-4.0", "CC-BY-NC-SA-4.0", "CC-BY-ND-4.0", "BUSL-1.1",
+    "CC-BY-NC-4.0",
+    "CC-BY-NC-SA-4.0",
+    "CC-BY-ND-4.0",
+    "BUSL-1.1",
 }
 
 # SPDX 3.x suffixes — strip before bucket lookup.

@@ -62,16 +62,15 @@ def serve_http(
 
 def _write_error(out: Any, req_id: Any, code: int, message: str) -> None:
     err = {
-        "jsonrpc": "2.0", "id": req_id,
+        "jsonrpc": "2.0",
+        "id": req_id,
         "error": {"code": code, "message": message},
     }
     out.write(json.dumps(err) + "\n")
     out.flush()
 
 
-def _build_handler(
-    root: Path, token: str | None
-) -> type[BaseHTTPRequestHandler]:
+def _build_handler(root: Path, token: str | None) -> type[BaseHTTPRequestHandler]:
     env_token = os.environ.get("SKILL_FORGE_MCP_TOKEN") or token
 
     class _Handler(BaseHTTPRequestHandler):
@@ -104,7 +103,8 @@ def _build_handler(
                 response = dispatch(root, request)
             except McpError as exc:
                 response = {
-                    "jsonrpc": "2.0", "id": request.get("id"),
+                    "jsonrpc": "2.0",
+                    "id": request.get("id"),
                     "error": {"code": exc.code, "message": exc.message},
                 }
             if response is None:

@@ -127,7 +127,6 @@ class AnthropicProvider(LLMProvider):
                 return _parse_score_payload(block.input, weights)
         raise LLMProviderError("model did not emit a score_skill tool call")
 
-
     def refine(
         self,
         skill: Skill,

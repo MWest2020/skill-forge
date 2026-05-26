@@ -94,8 +94,7 @@ class OllamaProvider(LLMProvider):
             )
         except httpx.HTTPError as exc:
             raise LLMProviderError(
-                f"ollama at {self._host} unreachable: {exc}. "
-                f"Is `ollama serve` running?"
+                f"ollama at {self._host} unreachable: {exc}. Is `ollama serve` running?"
             ) from exc
         if response.status_code >= 400:
             raise LLMProviderError(
@@ -123,10 +122,16 @@ def _parse_judge_payload(
     if not isinstance(findings_raw, list):
         raise LLMProviderError("ollama judge `findings` must be a list")
     try:
-        axes = {axis: float(data[axis]) for axis in (
-            "schema_compliance", "clarity", "actionability",
-            "gap_coverage", "provenance_quality",
-        )}
+        axes = {
+            axis: float(data[axis])
+            for axis in (
+                "schema_compliance",
+                "clarity",
+                "actionability",
+                "gap_coverage",
+                "provenance_quality",
+            )
+        }
         findings = parse_findings(findings_raw)
         score = build_judge_score(axes, weights)
     except (KeyError, TypeError, ValueError, ValidationError) as exc:
@@ -145,6 +150,8 @@ Output ONLY a single JSON object with keys: name, description, body.
     ## When to use
     ## Procedure
     ## Failure modes
+    ## Source
+  The `## Source` section is mandatory: list the source URL(s) as bullets.
 """
 
 
@@ -155,6 +162,9 @@ single JSON object with these keys:
   schema_compliance, clarity, actionability, gap_coverage, provenance_quality: each 0.0-1.0
   findings: list of {axis, observation, severity} objects (severity in info|warning|blocker)
 
+provenance_quality: score 0.4 or below if the body lacks a `## Source` section
+with human-readable URLs. The sources metadata alone isn't enough.
+
 Do NOT compute a `total` — the caller weights the axes.
 """
 
@@ -163,10 +173,13 @@ _REFINE_SYSTEM = """\
 You refine a SKILL.md body to address judge findings. Output ONLY a
 single JSON object: {"body": "<refined markdown>"}.
 
-- Keep the existing section structure (When to use / Procedure / Failure modes).
+- Keep the existing section structure (When to use / Procedure / Failure modes
+  / Source).
+- `## Source` is mandatory. Preserve URLs if the input has them; add them
+  from "additional source material" if the input body is missing the section.
 - Address each finding precisely. Don't globally rewrite.
-- If the input includes "additional source material", paraphrase from it.
-  Never quote verbatim.
+- If the input includes "additional source material", paraphrase from it AND
+  add its URL to `## Source`. Never quote verbatim.
 - If a "user hint" is present, treat it as priority over generic improvements.
 - Preserve specific commands, flags, file paths verbatim.
 """

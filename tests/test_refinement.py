@@ -65,13 +65,17 @@ def _seed_judged_skill(tmp_path: Path, findings: list[dict] | None = None) -> No
     migrate_one(tmp_path, "demo", draft=False)
     # Append a judged event so refinement has findings to work with.
     if findings is None:
-        findings = [
-            {"axis": "clarity", "observation": "too jargony", "severity": "warning"}
-        ]
-    score_data = {axis: 0.7 for axis in (
-        "schema_compliance", "clarity", "actionability",
-        "gap_coverage", "provenance_quality",
-    )}
+        findings = [{"axis": "clarity", "observation": "too jargony", "severity": "warning"}]
+    score_data = {
+        axis: 0.7
+        for axis in (
+            "schema_compliance",
+            "clarity",
+            "actionability",
+            "gap_coverage",
+            "provenance_quality",
+        )
+    }
     score_data["total"] = 0.7
     runs_dir = tmp_path / "runs"
     runs_dir.mkdir(parents=True, exist_ok=True)
@@ -127,9 +131,7 @@ def test_refine_skill_appends_audit(tmp_path: Path) -> None:
 def test_refine_passes_findings_and_hint_to_provider(tmp_path: Path) -> None:
     _seed_judged_skill(
         tmp_path,
-        findings=[
-            {"axis": "actionability", "observation": "step 3 vague", "severity": "warning"}
-        ],
+        findings=[{"axis": "actionability", "observation": "step 3 vague", "severity": "warning"}],
     )
     provider = _RefineProvider()
     refine_skill(tmp_path, "demo", provider=provider, hint="tighten the procedure")
@@ -220,10 +222,16 @@ def test_reject_iteration_only_pending(tmp_path: Path) -> None:
 
 def _seed_audit_with_findings(tmp_path: Path) -> None:
     """Append a `judged` event with findings so refine can find them."""
-    score_data = {axis: 0.7 for axis in (
-        "schema_compliance", "clarity", "actionability",
-        "gap_coverage", "provenance_quality",
-    )}
+    score_data = {
+        axis: 0.7
+        for axis in (
+            "schema_compliance",
+            "clarity",
+            "actionability",
+            "gap_coverage",
+            "provenance_quality",
+        )
+    }
     score_data["total"] = 0.7
     event = RunEvent(
         run_id="run-2026-05-24-001",
@@ -231,9 +239,7 @@ def _seed_audit_with_findings(tmp_path: Path) -> None:
         timestamp=datetime(2026, 5, 24, 14, 0, tzinfo=UTC),
         skill_slug="demo",
         scores=JudgeScore(**score_data),
-        findings=[
-            JudgeFinding(axis="clarity", observation="vague", severity="warning")
-        ],
+        findings=[JudgeFinding(axis="clarity", observation="vague", severity="warning")],
     )
     runs_dir = tmp_path / "runs"
     runs_dir.mkdir(parents=True, exist_ok=True)

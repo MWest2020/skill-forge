@@ -43,20 +43,27 @@ def test_accept_iteration_with_leading_newline_body_still_verifies(tmp_path: Pat
     # Write a v2 iteration whose body has a leading newline (pre-fix this
     # would silently break the signature on accept).
     fs.write_iteration(
-        tmp_path, "demo",
+        tmp_path,
+        "demo",
         body="\n\n## When to use\nfresh content\n",
-        version=2, kind="refined",
-        created=date(2026, 5, 24), draft=False,
+        version=2,
+        kind="refined",
+        created=date(2026, 5, 24),
+        draft=False,
     )
     from skill_forge.models import Iteration
 
     lineage = fs.read_lineage(tmp_path, "demo", draft=False)
     updated = lineage.model_copy(
         update={
-            "iterations": list(lineage.iterations) + [
+            "iterations": list(lineage.iterations)
+            + [
                 Iteration(
-                    version=2, kind="refined", created=date(2026, 5, 24),
-                    judge_score=None, status="pending",
+                    version=2,
+                    kind="refined",
+                    created=date(2026, 5, 24),
+                    judge_score=None,
+                    status="pending",
                 )
             ]
         }
@@ -94,9 +101,13 @@ def test_migrate_one_raises_on_partial_state_iterations_without_lineage(
 ) -> None:
     fs.write_skill(tmp_path, _skill(), draft=False)
     fs.write_iteration(
-        tmp_path, "demo",
-        body="# orphan\n", version=1, kind="imported",
-        created=date(2026, 5, 24), draft=False,
+        tmp_path,
+        "demo",
+        body="# orphan\n",
+        version=1,
+        kind="imported",
+        created=date(2026, 5, 24),
+        draft=False,
     )
     # No lineage.yml — partial state
     with pytest.raises(PartialMigrationError, match="partially migrated"):
@@ -111,11 +122,15 @@ def test_write_lineage_uses_atomic_rename(tmp_path: Path, monkeypatch) -> None: 
     from skill_forge.models import Iteration, Lineage
 
     line = Lineage(
-        slug="demo", current_version=1,
+        slug="demo",
+        current_version=1,
         iterations=[
             Iteration(
-                version=1, kind="imported", created=date(2026, 5, 24),
-                judge_score=None, status="current",
+                version=1,
+                kind="imported",
+                created=date(2026, 5, 24),
+                judge_score=None,
+                status="current",
             )
         ],
     )
@@ -143,12 +158,14 @@ def test_latest_judge_findings_warns_on_malformed_line(
         timestamp=datetime(2026, 5, 24, tzinfo=UTC),
         skill_slug="demo",
         scores=JudgeScore(
-            schema_compliance=0.8, clarity=0.8, actionability=0.8,
-            gap_coverage=0.8, provenance_quality=0.8, total=0.8,
+            schema_compliance=0.8,
+            clarity=0.8,
+            actionability=0.8,
+            gap_coverage=0.8,
+            provenance_quality=0.8,
+            total=0.8,
         ),
-        findings=[
-            JudgeFinding(axis="clarity", observation="vague", severity="warning")
-        ],
+        findings=[JudgeFinding(axis="clarity", observation="vague", severity="warning")],
     )
     # Malformed line LAST (scanned first in reverse order) so the warning fires
     # before the valid line returns.

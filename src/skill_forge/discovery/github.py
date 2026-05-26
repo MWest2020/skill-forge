@@ -9,8 +9,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class GitHubCandidate:
-    full_name: str            # e.g. "kubernetes/website"
-    html_url: str             # https://github.com/...
+    full_name: str  # e.g. "kubernetes/website"
+    html_url: str  # https://github.com/...
     spdx_license: str | None  # SPDX id from GitHub's licenseInfo, or None
 
 
@@ -23,16 +23,22 @@ def search_repos(topic: str, *, limit: int = 10) -> list[GitHubCandidate]:
     try:
         result = subprocess.run(
             [
-                "gh", "search", "repos", topic,
-                "--limit", str(limit),
-                "--json", "fullName,url,license",
+                "gh",
+                "search",
+                "repos",
+                topic,
+                "--limit",
+                str(limit),
+                "--json",
+                "fullName,url,license",
             ],
-            capture_output=True, text=True, timeout=30, check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
         )
     except FileNotFoundError as exc:
-        raise GitHubSearchError(
-            "`gh` CLI not found; install from https://cli.github.com/"
-        ) from exc
+        raise GitHubSearchError("`gh` CLI not found; install from https://cli.github.com/") from exc
     except subprocess.TimeoutExpired as exc:
         raise GitHubSearchError("`gh search` timed out after 30s") from exc
     if result.returncode != 0:

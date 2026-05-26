@@ -23,7 +23,9 @@ runner = CliRunner()
 
 def _skill(name: str = "demo") -> Skill:
     return Skill(
-        name=name, description="Use when X.", version=1,
+        name=name,
+        description="Use when X.",
+        version=1,
         sources=[SourceRef(id="src-abc123")],
         created=date(2026, 5, 24),
         body="# Body\n",
@@ -41,9 +43,7 @@ def test_sync_creates_symlinks(tmp_path: Path) -> None:
     _seed_promoted(tmp_path, "alpha")
     _seed_promoted(tmp_path, "beta")
     target_dir = tmp_path / "out"
-    manifest = sync_target(
-        tmp_path, target="claude-code", target_dir=target_dir, mode="symlink"
-    )
+    manifest = sync_target(tmp_path, target="claude-code", target_dir=target_dir, mode="symlink")
     assert len(manifest.entries) == 2
     a = target_dir / "alpha" / "SKILL.md"
     b = target_dir / "beta" / "SKILL.md"
@@ -96,9 +96,7 @@ def test_sync_only_promoted_not_drafts(tmp_path: Path) -> None:
     _seed_promoted(tmp_path, "live-one")
     fs.write_skill(tmp_path, _skill("draft-one"), draft=True)
     target_dir = tmp_path / "out"
-    manifest = sync_target(
-        tmp_path, target="claude-code", target_dir=target_dir, mode="copy"
-    )
+    manifest = sync_target(tmp_path, target="claude-code", target_dir=target_dir, mode="copy")
     slugs = {e.slug for e in manifest.entries}
     assert slugs == {"live-one"}
 
@@ -146,8 +144,10 @@ def test_sync_refuses_home_parent(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     _seed_promoted(tmp_path)
     with pytest.raises(SyncError, match="parent of your home"):
         sync_target(
-            tmp_path, target="claude-code",
-            target_dir=tmp_path / "fake-home", mode="copy",
+            tmp_path,
+            target="claude-code",
+            target_dir=tmp_path / "fake-home",
+            mode="copy",
         )
 
 
@@ -159,8 +159,16 @@ def test_cli_sync(tmp_path: Path) -> None:
     target_dir = tmp_path / "out"
     result = runner.invoke(
         app,
-        ["sync", "claude-code", "--target-dir", str(target_dir),
-         "--mode", "copy", "--root", str(tmp_path)],
+        [
+            "sync",
+            "claude-code",
+            "--target-dir",
+            str(target_dir),
+            "--mode",
+            "copy",
+            "--root",
+            str(tmp_path),
+        ],
     )
     assert result.exit_code == 0
     assert "Synced: 1 skill(s)" in result.output
@@ -171,12 +179,18 @@ def test_cli_sync_unsync(tmp_path: Path) -> None:
     target_dir = tmp_path / "out"
     runner.invoke(
         app,
-        ["sync", "claude-code", "--target-dir", str(target_dir),
-         "--mode", "copy", "--root", str(tmp_path)],
+        [
+            "sync",
+            "claude-code",
+            "--target-dir",
+            str(target_dir),
+            "--mode",
+            "copy",
+            "--root",
+            str(tmp_path),
+        ],
     )
-    result = runner.invoke(
-        app, ["sync", "claude-code", "--unsync", "--root", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["sync", "claude-code", "--unsync", "--root", str(tmp_path)])
     assert result.exit_code == 0
     assert "Unsynced" in result.output
 

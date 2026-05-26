@@ -46,9 +46,13 @@ def migrate_one(root: Path, slug: str, *, draft: bool, dry_run: bool = False) ->
     # rule, even though SKILL.md itself includes frontmatter on disk.
     skill = storage.read_skill_file(skill_md)
     storage.write_iteration(
-        root, slug,
-        body=skill.body, version=1, kind="imported",
-        created=today, draft=draft,
+        root,
+        slug,
+        body=skill.body,
+        version=1,
+        kind="imported",
+        created=today,
+        draft=draft,
     )
 
     lineage = Lineage(

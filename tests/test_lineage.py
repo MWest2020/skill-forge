@@ -141,20 +141,35 @@ def test_write_iteration_creates_file(tmp_path: Path) -> None:
 
 def test_write_iteration_refuses_collision(tmp_path: Path) -> None:
     fs.write_iteration(
-        tmp_path, "demo", body="a", version=1, kind="imported",
-        created=date(2026, 5, 24), draft=False,
+        tmp_path,
+        "demo",
+        body="a",
+        version=1,
+        kind="imported",
+        created=date(2026, 5, 24),
+        draft=False,
     )
     with pytest.raises(FileExistsError):
         fs.write_iteration(
-            tmp_path, "demo", body="b", version=1, kind="imported",
-            created=date(2026, 5, 24), draft=False,
+            tmp_path,
+            "demo",
+            body="b",
+            version=1,
+            kind="imported",
+            created=date(2026, 5, 24),
+            draft=False,
         )
 
 
 def test_read_iteration_returns_body(tmp_path: Path) -> None:
     fs.write_iteration(
-        tmp_path, "demo", body="hello\n", version=2, kind="refined",
-        created=date(2026, 5, 24), draft=False,
+        tmp_path,
+        "demo",
+        body="hello\n",
+        version=2,
+        kind="refined",
+        created=date(2026, 5, 24),
+        draft=False,
     )
     assert fs.read_iteration(tmp_path, "demo", 2, draft=False) == "hello\n"
 
@@ -231,9 +246,7 @@ def test_cli_lineage_migrate_all(tmp_path: Path) -> None:
 def test_cli_lineage_migrate_single_slug(tmp_path: Path) -> None:
     fs.write_skill(tmp_path, _skill("a"), draft=False)
     fs.write_skill(tmp_path, _skill("b"), draft=False)
-    result = runner.invoke(
-        app, ["lineage", "migrate", "--slug", "a", "--root", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["lineage", "migrate", "--slug", "a", "--root", str(tmp_path)])
     assert result.exit_code == 0
     assert "migrated: skills/a" in result.output
     # b is untouched
@@ -242,9 +255,7 @@ def test_cli_lineage_migrate_single_slug(tmp_path: Path) -> None:
 
 def test_cli_lineage_migrate_dry_run(tmp_path: Path) -> None:
     fs.write_skill(tmp_path, _skill(), draft=False)
-    result = runner.invoke(
-        app, ["lineage", "migrate", "--dry-run", "--root", str(tmp_path)]
-    )
+    result = runner.invoke(app, ["lineage", "migrate", "--dry-run", "--root", str(tmp_path)])
     assert result.exit_code == 0
     assert "would migrate:" in result.output
     assert not (tmp_path / "skills" / "demo" / "lineage.yml").exists()

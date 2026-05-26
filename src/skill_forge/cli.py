@@ -160,9 +160,9 @@ def run(
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
 
-    allowed = [
-        c for c in candidates if classify_spdx(c.spdx_license) != "forbidden"
-    ][:max_candidates]
+    allowed = [c for c in candidates if classify_spdx(c.spdx_license) != "forbidden"][
+        :max_candidates
+    ]
     if not allowed:
         typer.echo(f"No license-clean candidates found for {topic!r}.", err=True)
         raise typer.Exit(code=1)
@@ -173,8 +173,11 @@ def run(
         try:
             _run_extract(
                 cand.html_url,
-                root=base, follow_next=False, max_pages=DEFAULT_MAX_PAGES,
-                provider=provider, identity=identity,
+                root=base,
+                follow_next=False,
+                max_pages=DEFAULT_MAX_PAGES,
+                provider=provider,
+                identity=identity,
             )
         except typer.Exit as exc:
             # Code 2 = config/auth broken → don't waste budget on remaining candidates.
@@ -436,9 +439,7 @@ def promote(
     cfg = load_config(base)
     identity = _load_identity(home=None)
     try:
-        path = _promote(
-            base, slug, promotion=cfg["promotion"], force=force, identity=identity
-        )
+        path = _promote(base, slug, promotion=cfg["promotion"], force=force, identity=identity)
     except NotJudgedError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=2) from exc
@@ -528,9 +529,12 @@ def refine(
     identity = _load_identity(home=None)
     try:
         new_version = refine_skill(
-            base, slug,
-            provider=provider, identity=identity,
-            hint=hint, extra_source=extra_text,
+            base,
+            slug,
+            provider=provider,
+            identity=identity,
+            hint=hint,
+            extra_source=extra_text,
         )
     except NoJudgmentToRefineError as exc:
         typer.echo(str(exc), err=True)
@@ -632,12 +636,8 @@ def diff(
         raise typer.Exit(code=1)
 
     try:
-        from_path = next(
-            storage.iterations_dir(base, slug, draft=draft).glob(f"v{from_v}-*.md")
-        )
-        to_path = next(
-            storage.iterations_dir(base, slug, draft=draft).glob(f"v{to_v}-*.md")
-        )
+        from_path = next(storage.iterations_dir(base, slug, draft=draft).glob(f"v{from_v}-*.md"))
+        to_path = next(storage.iterations_dir(base, slug, draft=draft).glob(f"v{to_v}-*.md"))
     except (StopIteration, FileNotFoundError) as exc:
         typer.echo(f"iteration v{from_v} or v{to_v} not found", err=True)
         raise typer.Exit(code=1) from exc
@@ -667,9 +667,7 @@ def sync(
         Path | None,
         typer.Option("--target-dir", help="Override the conventional path for this target."),
     ] = None,
-    mode: Annotated[
-        str, typer.Option("--mode", help="symlink | copy")
-    ] = "symlink",
+    mode: Annotated[str, typer.Option("--mode", help="symlink | copy")] = "symlink",
     unsync: Annotated[
         bool,
         typer.Option(
@@ -689,9 +687,7 @@ def sync(
         except SyncError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(code=1) from exc
-        typer.echo(
-            f"Unsynced: {removed} of {expected} skill(s) removed for target {target!r}"
-        )
+        typer.echo(f"Unsynced: {removed} of {expected} skill(s) removed for target {target!r}")
         return
     try:
         manifest = sync_target(base, target=target, target_dir=target_dir, mode=mode)
@@ -721,6 +717,99 @@ peer_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(peer_app, name="peer")
+
+
+@app.command()
+def subscribe(
+    slug: Annotated[
+        str | None, typer.Argument(help="Skill slug to subscribe to (omit with --list).")
+    ] = None,
+    list_only: Annotated[bool, typer.Option("--list", help="List watched sources.")] = False,
+    remove: Annotated[bool, typer.Option("--remove", help="Drop a slug from watches.")] = False,
+    root: RootOpt = None,
+) -> None:
+    """Watch a skill's source URL for changes."""
+    from datetime import UTC, datetime
+
+    from skill_forge.subscribe import (
+        Subscription,
+        SubscriptionError,
+        add_subscription,
+        list_subscriptions,
+        remove_subscription,
+    )
+
+    base = _resolve_root(root)
+    if list_only:
+        subs = list_subscriptions(base)
+        if not subs:
+            typer.echo("No subscriptions. Add one: `forge subscribe <slug>`")
+            return
+        for s in subs:
+            typer.echo(f"  {s.slug:<35} {s.url}  (checked: {s.last_checked.isoformat()})")
+        return
+    if slug is None:
+        typer.echo("missing argument: SLUG (or use --list)", err=True)
+        raise typer.Exit(code=1)
+    if remove:
+        if remove_subscription(base, slug):
+            typer.echo(f"Unsubscribed: {slug}")
+        else:
+            typer.echo(f"No subscription named {slug!r}", err=True)
+            raise typer.Exit(code=1)
+        return
+    try:
+        sources = storage.read_sources(base, slug)
+    except FileNotFoundError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    http_source = next(
+        (s for s in sources.sources if s.url.startswith(("http://", "https://"))),
+        None,
+    )
+    if http_source is None:
+        typer.echo(
+            f"{slug!r} has no http(s) source to subscribe to "
+            "(local-author and federation sources aren't refetchable)",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    sub = Subscription(
+        slug=slug,
+        url=http_source.url,
+        last_sha256=http_source.sha256,
+        last_checked=datetime.now(UTC),
+    )
+    try:
+        add_subscription(base, sub)
+    except SubscriptionError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Subscribed: {slug} → {http_source.url}")
+
+
+@app.command(name="check-updates")
+def check_updates(root: RootOpt = None) -> None:
+    """Re-fetch every watched source URL, report changes."""
+    from skill_forge.subscribe import check_updates as _check
+
+    base = _resolve_root(root)
+    results = _check(base)
+    if not results:
+        typer.echo("No subscriptions to check. Add one: `forge subscribe <slug>`")
+        return
+    changed = sum(1 for r in results if r.status == "changed")
+    unreachable = sum(1 for r in results if r.status == "unreachable")
+    for r in results:
+        marker = {"unchanged": "·", "changed": "↻", "unreachable": "✗"}[r.status]
+        line = f"  {marker} {r.slug:<35} {r.status}"
+        if r.status == "unreachable" and r.error:
+            line += f"  ({r.error[:60]})"
+        typer.echo(line)
+    typer.echo(
+        f"\n{len(results)} checked: {changed} changed, "
+        f"{unreachable} unreachable, {len(results) - changed - unreachable} unchanged."
+    )
 
 
 @peer_app.command(name="add")
@@ -828,9 +917,7 @@ def peer_pull(
 
 @serve_app.command(name="mcp")
 def serve_mcp(
-    transport: Annotated[
-        str, typer.Option("--transport", help="stdio | http")
-    ] = "stdio",
+    transport: Annotated[str, typer.Option("--transport", help="stdio | http")] = "stdio",
     host: Annotated[str, typer.Option("--host", help="HTTP bind address.")] = "127.0.0.1",
     port: Annotated[int, typer.Option("--port", help="HTTP bind port.")] = 8765,
     token: Annotated[

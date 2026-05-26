@@ -41,12 +41,15 @@ Rules:
     ## When to use
     ## Procedure
     ## Failure modes
+    ## Source
   Paraphrase the source — never reproduce long passages verbatim. When the \
   source names specific commands, flags, config keys, or file paths, cite \
   them exactly in inline code.
+  The `## Source` section is mandatory: list source URL(s) as bullet points \
+  with page titles when known (e.g. `- [Title](URL)`).
 
 If the input contains `--- next page: <url> ---` markers, synthesize one \
-coherent skill across all pages.
+coherent skill across all pages. List every page URL under `## Source`.
 """
 
 
@@ -149,11 +152,13 @@ Output ONLY a single JSON object on stdout. No fences, no prose. Shape:
   {"body": "<refined markdown body, no frontmatter>"}
 
 Rules:
-- Keep the existing section structure (When to use / Procedure / Failure modes)
-  unless a finding explicitly asks you to restructure.
+- Keep the existing section structure (When to use / Procedure / Failure modes
+  / Source) unless a finding explicitly asks you to restructure.
+- `## Source` section is mandatory. Preserve its URLs if present in the input
+  body. If absent, ADD it from the additional source material URL.
 - Address each finding precisely. Surgical edits, not wholesale rewrites.
-- If `additional source material` is provided, paraphrase relevant material.
-  Never quote verbatim.
+- If `additional source material` is provided, paraphrase relevant material
+  AND add its URL to `## Source`. Never quote verbatim.
 - If `user hint` is provided, treat it as priority over generic improvements.
 - Preserve specific commands, flags, config keys, file paths verbatim.
 """
@@ -169,7 +174,9 @@ Score each axis from 0.0 to 1.0:
 - clarity — unambiguous when-to-use, no unexplained jargon
 - actionability — an agent could follow this without external guesswork
 - gap_coverage — adds something distinct vs typical skills on this topic
-- provenance_quality — sources field meaningful, body paraphrased not quoted
+- provenance_quality — body has a `## Source` section with human-readable
+  URLs (mandatory; missing → score this axis at 0.4 or below), sources field
+  meaningful, body paraphrased not quoted
 
 For each axis below 1.0, add one findings entry:
 {"axis": <axis name>, "observation": <1-3 sentences>, "severity": "info"|"warning"|"blocker"}

@@ -107,9 +107,7 @@ class Skill(BaseModel):
     @classmethod
     def _visibility_allowed(cls, v: str) -> str:
         if v not in VISIBILITY_VALUES:
-            raise ValueError(
-                f"Skill.visibility must be one of {VISIBILITY_VALUES}, got {v!r}"
-            )
+            raise ValueError(f"Skill.visibility must be one of {VISIBILITY_VALUES}, got {v!r}")
         return v
 
     @field_validator("body")
@@ -282,9 +280,7 @@ class Iteration(BaseModel):
     @classmethod
     def _status_allowed(cls, v: str) -> str:
         if v not in ITERATION_STATUSES:
-            raise ValueError(
-                f"Iteration.status must be one of {ITERATION_STATUSES}, got {v!r}"
-            )
+            raise ValueError(f"Iteration.status must be one of {ITERATION_STATUSES}, got {v!r}")
         return v
 
     @field_validator("judge_score")
@@ -327,9 +323,7 @@ class Lineage(BaseModel):
     def _coherent(self) -> Lineage:
         versions = [it.version for it in self.iterations]
         if versions != sorted(set(versions)):
-            raise ValueError(
-                "Lineage.iterations versions must be strictly monotonic starting at 1"
-            )
+            raise ValueError("Lineage.iterations versions must be strictly monotonic starting at 1")
         current = [it for it in self.iterations if it.status == "current"]
         if len(current) != 1:
             raise ValueError(
@@ -389,7 +383,7 @@ class RunEvent(BaseModel):
     @field_validator("event")
     @classmethod
     def _event_allowed(cls, v: str) -> str:
-        allowed = {"imported", "judged", "promoted", "demoted", "refined"}
+        allowed = {"imported", "judged", "promoted", "demoted", "refined", "checked"}
         if v not in allowed:
             raise ValueError(f"RunEvent.event must be one of {sorted(allowed)}, got {v!r}")
         return v

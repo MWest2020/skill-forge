@@ -125,8 +125,7 @@ def _check_threshold(root: Path, slug: str, promotion: dict[str, float]) -> None
     sources = storage.read_sources(root, slug)
     if not sources.runs:
         raise NotJudgedError(
-            f"{slug!r} has no judge runs yet; run `forge judge {slug}` "
-            "first or pass --force"
+            f"{slug!r} has no judge runs yet; run `forge judge {slug}` first or pass --force"
         )
     latest = sources.runs[-1]
     total_min = float(promotion.get("total_min", 0.75))
@@ -145,8 +144,7 @@ def _check_threshold(root: Path, slug: str, promotion: dict[str, float]) -> None
             value = getattr(judged, axis)
             if value < axis_min:
                 raise BelowThresholdError(
-                    f"axis {axis} = {value:.2f} < threshold {axis_min:.2f}; "
-                    "rejudge or pass --force"
+                    f"axis {axis} = {value:.2f} < threshold {axis_min:.2f}; rejudge or pass --force"
                 )
 
 

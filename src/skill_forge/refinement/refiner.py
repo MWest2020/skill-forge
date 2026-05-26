@@ -70,9 +70,13 @@ def refine_skill(
     new_version = max(it.version for it in lineage.iterations) + 1
     today = datetime.now(UTC).date()
     storage.write_iteration(
-        root, slug,
-        body=body, version=new_version, kind="refined",
-        created=today, draft=draft,
+        root,
+        slug,
+        body=body,
+        version=new_version,
+        kind="refined",
+        created=today,
+        draft=draft,
     )
 
     new_iter = Iteration(
@@ -82,9 +86,7 @@ def refine_skill(
         judge_score=None,
         status="pending",
     )
-    updated = lineage.model_copy(
-        update={"iterations": list(lineage.iterations) + [new_iter]}
-    )
+    updated = lineage.model_copy(update={"iterations": list(lineage.iterations) + [new_iter]})
     storage.write_lineage(root, slug, updated, draft=draft, overwrite=True)
 
     append_run_event(
@@ -127,9 +129,7 @@ def accept_iteration(
     new_skill = Skill.model_validate(
         {**current_skill.model_dump(mode="json"), "body": body, "signature": None}
     )
-    new_path = storage.write_skill(
-        root, new_skill, draft=draft, identity=identity, overwrite=True
-    )
+    new_path = storage.write_skill(root, new_skill, draft=draft, identity=identity, overwrite=True)
 
     new_iters: list[Iteration] = []
     for it in lineage.iterations:

@@ -45,7 +45,9 @@ def _patch_post(monkeypatch: pytest.MonkeyPatch, **kwargs: object) -> MagicMock:
 
 def _skill() -> Skill:
     return Skill(
-        name="demo", description="Use when X.", version=1,
+        name="demo",
+        description="Use when X.",
+        version=1,
         sources=[SourceRef(id="src-abc123")],
         created=date(2026, 5, 24),
         body="## When to use\nA\n## Procedure\nB\n## Failure modes\nC\n",
@@ -57,8 +59,11 @@ def _skill() -> Skill:
 
 def test_extract_returns_draft(monkeypatch: pytest.MonkeyPatch) -> None:
     payload = json.dumps(
-        {"name": "demo-skill", "description": "Use this skill when X.",
-         "body": "## When to use\nX\n## Procedure\nY\n## Failure modes\nZ"}
+        {
+            "name": "demo-skill",
+            "description": "Use this skill when X.",
+            "body": "## When to use\nX\n## Procedure\nY\n## Failure modes\nZ",
+        }
     )
     _patch_post(monkeypatch, return_value=_envelope(payload))
     draft = OllamaProvider().extract_draft(source_url="https://x", source_text="hi")
@@ -75,12 +80,14 @@ def test_extract_bad_shape_raises(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_judge_returns_score(monkeypatch: pytest.MonkeyPatch) -> None:
-    payload = json.dumps({
-        **{axis: 0.7 for axis in JUDGE_AXES},
-        "findings": [
-            {"axis": "clarity", "observation": "could be tighter", "severity": "warning"}
-        ],
-    })
+    payload = json.dumps(
+        {
+            **{axis: 0.7 for axis in JUDGE_AXES},
+            "findings": [
+                {"axis": "clarity", "observation": "could be tighter", "severity": "warning"}
+            ],
+        }
+    )
     _patch_post(monkeypatch, return_value=_envelope(payload))
     score, findings = OllamaProvider().judge(_skill(), weights=_WEIGHTS)
     assert score.total == pytest.approx(0.7)
@@ -136,9 +143,7 @@ def test_unparseable_content(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_request_shape(monkeypatch: pytest.MonkeyPatch) -> None:
-    draft_json = (
-        '{"name": "demo", "description": "Use this skill when X.", "body": "ok"}'
-    )
+    draft_json = '{"name": "demo", "description": "Use this skill when X.", "body": "ok"}'
     fake = _patch_post(monkeypatch, return_value=_envelope(draft_json))
     OllamaProvider(host="http://host:11434/", model="custom-model").extract_draft(
         source_url="https://x", source_text="hi"

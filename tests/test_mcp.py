@@ -25,7 +25,9 @@ from skill_forge.storage import filesystem as fs
 
 def _skill(name: str = "demo") -> Skill:
     return Skill(
-        name=name, description=f"Use this skill when {name}.", version=1,
+        name=name,
+        description=f"Use this skill when {name}.",
+        version=1,
         sources=[SourceRef(id="src-abc123")],
         created=date(2026, 5, 24),
         body="## When to use\n...\n## Procedure\n...\n## Failure modes\n...\n",
@@ -64,10 +66,16 @@ def test_resources_list_returns_promoted(tmp_path: Path) -> None:
     """resources/list filters to public-visibility live skills."""
     pub = _skill("alpha")
     fs.write_skill(tmp_path, pub.model_copy(update={"visibility": "public"}), draft=False)
-    fs.write_skill(tmp_path, pub.model_copy(update={"name": "beta", "visibility": "public"}), draft=False)
+    fs.write_skill(
+        tmp_path, pub.model_copy(update={"name": "beta", "visibility": "public"}), draft=False
+    )
     # Private + unlisted shouldn't be enumerable
-    fs.write_skill(tmp_path, pub.model_copy(update={"name": "secret"}), draft=False)  # default private
-    fs.write_skill(tmp_path, pub.model_copy(update={"name": "hidden", "visibility": "unlisted"}), draft=False)
+    fs.write_skill(
+        tmp_path, pub.model_copy(update={"name": "secret"}), draft=False
+    )  # default private
+    fs.write_skill(
+        tmp_path, pub.model_copy(update={"name": "hidden", "visibility": "unlisted"}), draft=False
+    )
     fs.write_skill(tmp_path, _skill("draft-only"), draft=True)
 
     response = dispatch(tmp_path, _req("resources/list"))
@@ -130,9 +138,7 @@ def test_non_jsonrpc_request(tmp_path: Path) -> None:
 
 def test_notification_returns_none(tmp_path: Path) -> None:
     # Notifications have no `id` field
-    response = dispatch(
-        tmp_path, {"jsonrpc": "2.0", "method": "notifications/initialized"}
-    )
+    response = dispatch(tmp_path, {"jsonrpc": "2.0", "method": "notifications/initialized"})
     assert response is None
 
 
@@ -142,8 +148,7 @@ def test_notification_returns_none(tmp_path: Path) -> None:
 def test_stdio_round_trip(tmp_path: Path) -> None:
     _seed_promoted(tmp_path, "alpha")
     stream_in = io.StringIO(
-        json.dumps(_req("initialize")) + "\n"
-        + json.dumps(_req("resources/list", req_id=2)) + "\n"
+        json.dumps(_req("initialize")) + "\n" + json.dumps(_req("resources/list", req_id=2)) + "\n"
     )
     stream_out = io.StringIO()
     serve_stdio(tmp_path, stream_in=stream_in, stream_out=stream_out)
@@ -191,7 +196,9 @@ def _start_http_server(
 def _post_json(url: str, payload: dict, *, headers: dict | None = None) -> tuple[int, dict | None]:
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(  # noqa: S310
-        url, data=data, method="POST",
+        url,
+        data=data,
+        method="POST",
         headers={"Content-Type": "application/json", **(headers or {})},
     )
     try:

@@ -46,8 +46,10 @@ Score each of the five axes from 0.0 to 1.0:
   guesswork. Cites specific commands, flags, paths.
 - gap_coverage — adds something distinct versus typical skills on this
   topic. Generic content scores low.
-- provenance_quality — sources field non-empty and meaningful; description
-  reads as paraphrased, not verbatim quotation.
+- provenance_quality — body has a `## Source` section with human-readable
+  URLs (mandatory); description reads as paraphrased, not verbatim quotation;
+  `sources` field non-empty. Missing `## Source` section is a hard penalty
+  (score this axis at 0.4 or below).
 
 For each axis below 1.0, write one `findings` entry with:
 - axis: the axis name
@@ -68,11 +70,16 @@ Output ONLY via the `emit_refinement` tool. No prose, no preamble.
 Rules:
 - Produce ONLY the markdown body — no frontmatter, no metadata.
 - Keep the existing section structure ("## When to use", "## Procedure",
-  "## Failure modes") unless a finding explicitly asks you to restructure.
+  "## Failure modes", "## Source") unless a finding explicitly asks you to
+  restructure.
+- The `## Source` section is mandatory. If the input body already has one,
+  PRESERVE its URLs verbatim. If the input body is missing the section, ADD
+  it with the source URLs from the additional source material (if provided)
+  or the URL implied by the procedure references.
 - Address each finding precisely. Don't globally rewrite — surgical edits
   that target lost points score better than wholesale rewrites.
 - If `extra_source` is supplied, paraphrase relevant material from it into
-  the body. Never quote verbatim.
+  the body AND add its URL to `## Source`. Never quote verbatim.
 - If `hint` is supplied, treat it as a user-priority overlay on top of
   the findings. If hint contradicts a finding, prefer the hint and note
   the trade-off in a brief inline comment.

@@ -12,7 +12,6 @@ from http.server import HTTPServer
 from pathlib import Path
 
 import pytest
-from cryptography.hazmat.primitives import serialization
 from typer.testing import CliRunner
 
 from skill_forge.cli import app
@@ -36,7 +35,9 @@ runner = CliRunner()
 
 def _skill(name: str, visibility: str = "public") -> Skill:
     return Skill(
-        name=name, description=f"Use this skill when {name}.", version=1,
+        name=name,
+        description=f"Use this skill when {name}.",
+        version=1,
         sources=[SourceRef(id="src-abc123")],
         created=date(2026, 5, 24),
         body="## When to use\n...\n## Procedure\n...\n## Failure modes\n...\n",
@@ -114,9 +115,7 @@ def test_federation_peer_info_returns_id_and_pem(
     assert "BEGIN PUBLIC KEY" in response["result"]["public_key_pem"]
 
 
-def test_federation_skill_refuses_private(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_federation_skill_refuses_private(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "id"
     monkeypatch.setenv("SKILL_FORGE_HOME", str(home))
     from_seed(home, b"\x03" * 32)
@@ -127,8 +126,12 @@ def test_federation_skill_refuses_private(
     with pytest.raises(McpError, match="unknown skill"):
         dispatch(
             tmp_path,
-            {"jsonrpc": "2.0", "method": "federation/skill", "id": 1,
-             "params": {"slug": "private-one"}},
+            {
+                "jsonrpc": "2.0",
+                "method": "federation/skill",
+                "id": 1,
+                "params": {"slug": "private-one"},
+            },
         )
 
 
@@ -142,8 +145,7 @@ def test_federation_skill_serves_unlisted_by_slug(
 
     response = dispatch(
         tmp_path,
-        {"jsonrpc": "2.0", "method": "federation/skill", "id": 1,
-         "params": {"slug": "hidden"}},
+        {"jsonrpc": "2.0", "method": "federation/skill", "id": 1, "params": {"slug": "hidden"}},
     )
     assert response is not None
     assert response["result"]["skill"]["name"] == "hidden"
@@ -159,9 +161,7 @@ def _start_server(root: Path) -> tuple[str, HTTPServer]:
     return f"http://127.0.0.1:{server.server_address[1]}", server
 
 
-def test_pull_skill_end_to_end(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_pull_skill_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Instance A publishes a signed public skill; instance B pulls + verifies."""
     # Instance A: identity + repo with a public, signed skill
     a_home = tmp_path / "a-id"
@@ -252,7 +252,9 @@ def test_fetch_manifest_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_cli_peer_add_list_remove(tmp_path: Path) -> None:
-    result = runner.invoke(app, ["peer", "add", "alice", "http://a.example", "--root", str(tmp_path)])
+    result = runner.invoke(
+        app, ["peer", "add", "alice", "http://a.example", "--root", str(tmp_path)]
+    )
     assert result.exit_code == 0
     assert "Added peer: alice" in result.output
 

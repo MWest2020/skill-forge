@@ -57,9 +57,7 @@ def serialize_skill_for_refine(
 ) -> str:
     """Render the skill + findings + optional inputs for the refinement prompt."""
     findings_block = (
-        "\n".join(
-            f"- [{f.severity}] {f.axis}: {f.observation}" for f in findings
-        )
+        "\n".join(f"- [{f.severity}] {f.axis}: {f.observation}" for f in findings)
         if findings
         else "(no findings — refine to improve overall quality)"
     )

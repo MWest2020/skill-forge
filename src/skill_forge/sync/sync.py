@@ -119,7 +119,16 @@ def _resolve_target_dir(target: str, override: Path | None) -> Path:
 
 
 _REFUSED_SYSTEM_PATHS = {
-    "/", "/etc", "/usr", "/var", "/bin", "/sbin", "/boot", "/root", "/dev", "/proc",
+    "/",
+    "/etc",
+    "/usr",
+    "/var",
+    "/bin",
+    "/sbin",
+    "/boot",
+    "/root",
+    "/dev",
+    "/proc",
 }
 
 
@@ -133,9 +142,7 @@ def _refuse_dangerous_dir(path: Path) -> None:
         raise SyncError(f"refusing to sync into a system directory ({resolved})")
     # Refuse ancestors of $HOME (e.g. /home, /Users on macOS).
     if resolved in home.parents:
-        raise SyncError(
-            f"refusing to sync into a parent of your home directory ({resolved})"
-        )
+        raise SyncError(f"refusing to sync into a parent of your home directory ({resolved})")
     if resolved.exists() and not resolved.is_dir():
         raise SyncError(f"{resolved} exists and is not a directory")
 
@@ -147,9 +154,7 @@ def _list_promoted_slugs(root: Path) -> list[str]:
     return sorted(
         child.name
         for child in live.iterdir()
-        if child.is_dir()
-        and not child.name.startswith("_")
-        and (child / "SKILL.md").is_file()
+        if child.is_dir() and not child.name.startswith("_") and (child / "SKILL.md").is_file()
     )
 
 

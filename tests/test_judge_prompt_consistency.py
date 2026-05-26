@@ -35,6 +35,4 @@ def test_every_severity_named_in_every_judge_prompt() -> None:
         ("ollama _JUDGE_SYSTEM", _JUDGE_SYSTEM),
     ]:
         for severity in JUDGE_SEVERITIES:
-            assert severity in prompt, (
-                f"{prompt_label} doesn't mention severity {severity!r}"
-            )
+            assert severity in prompt, f"{prompt_label} doesn't mention severity {severity!r}"

@@ -73,9 +73,7 @@ def pull_skill(root: Path, peer: Peer, slug: str) -> Skill:
     try:
         public_key.verify(base64.b64decode(skill.signature), payload)
     except InvalidSignature as exc:
-        raise PullError(
-            f"peer's skill {slug!r} signature does not verify with peer's key"
-        ) from exc
+        raise PullError(f"peer's skill {slug!r} signature does not verify with peer's key") from exc
 
     # 4. Land it as a draft. Preserve foreign origin + signature verbatim.
     landed_slug = storage.free_slug(root, skill.name)
@@ -98,7 +96,8 @@ def pull_skill(root: Path, peer: Peer, slug: str) -> Skill:
         contribution=f"pulled from peer {peer.name!r} ({peer.instance_id})",
     )
     storage.write_sources(
-        root, skill.name,
+        root,
+        skill.name,
         SourcesFile(slug=skill.name, sources=[src]),
     )
 
@@ -121,9 +120,14 @@ def pull_skill(root: Path, peer: Peer, slug: str) -> Skill:
 
 def _rpc(peer: Peer, method: str, params: dict[str, Any]) -> dict[str, Any]:
     """One JSON-RPC call against the peer's /mcp endpoint."""
-    payload = json.dumps({
-        "jsonrpc": "2.0", "id": 1, "method": method, "params": params,
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": method,
+            "params": params,
+        }
+    ).encode("utf-8")
     headers = {"Content-Type": "application/json"}
     if peer.token:
         headers["Authorization"] = f"Bearer {peer.token}"
@@ -158,9 +162,7 @@ def _ensure_peer_identity(root: Path, peer: Peer) -> Peer:
     # re-add a peer the user explicitly removed.
     peers = read_peers(root)
     if not any(p.name == peer.name for p in peers.peers):
-        raise PullError(
-            f"peer {peer.name!r} was removed while pulling; re-add it and retry"
-        )
+        raise PullError(f"peer {peer.name!r} was removed while pulling; re-add it and retry")
     peers.peers = [peer if p.name == peer.name else p for p in peers.peers]
     write_peers(root, peers)
     return peer

@@ -201,17 +201,15 @@ def write_iteration(
 def read_iteration(root: Path, slug: str, version: int, *, draft: bool) -> str:
     """Read the body of iteration `version`. Raises if not found / ambiguous."""
     candidates = sorted(
-        p for p in iterations_dir(root, slug, draft=draft).glob(f"v{version}-*.md")
+        p
+        for p in iterations_dir(root, slug, draft=draft).glob(f"v{version}-*.md")
         if ITERATION_FILE_RE.match(p.name)
     )
     if not candidates:
-        raise FileNotFoundError(
-            f"no iteration v{version} for skill {slug!r}"
-        )
+        raise FileNotFoundError(f"no iteration v{version} for skill {slug!r}")
     if len(candidates) > 1:
         raise ValueError(
-            f"multiple iteration files at v{version} for {slug!r}: "
-            f"{[p.name for p in candidates]}"
+            f"multiple iteration files at v{version} for {slug!r}: {[p.name for p in candidates]}"
         )
     return candidates[0].read_text(encoding="utf-8")
 

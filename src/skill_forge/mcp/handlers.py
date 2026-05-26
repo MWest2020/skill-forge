@@ -96,12 +96,14 @@ def _list_resources(root: Path) -> list[dict[str, str]]:
             continue
         if skill.visibility != "public":
             continue
-        out.append({
-            "uri": f"{RESOURCE_PREFIX}{entry.slug}",
-            "name": skill.name,
-            "description": skill.description,
-            "mimeType": RESOURCE_MIME,
-        })
+        out.append(
+            {
+                "uri": f"{RESOURCE_PREFIX}{entry.slug}",
+                "name": skill.name,
+                "description": skill.description,
+                "mimeType": RESOURCE_MIME,
+            }
+        )
     return out
 
 
@@ -132,12 +134,14 @@ def _federation_manifest(root: Path) -> dict[str, Any]:
             continue
         if skill.visibility != "public":
             continue
-        out.append({
-            "slug": skill.name,
-            "description": skill.description,
-            "judge_score": skill.judge_score,
-            "origin": skill.origin,
-        })
+        out.append(
+            {
+                "slug": skill.name,
+                "description": skill.description,
+                "judge_score": skill.judge_score,
+                "origin": skill.origin,
+            }
+        )
     return {"skills": out}
 
 
@@ -170,7 +174,7 @@ def _read_resource(root: Path, params: dict[str, Any]) -> dict[str, Any]:
     uri = params.get("uri")
     if not isinstance(uri, str) or not uri.startswith(RESOURCE_PREFIX):
         raise McpError(-32602, f"uri must start with {RESOURCE_PREFIX}")
-    slug = uri[len(RESOURCE_PREFIX):]
+    slug = uri[len(RESOURCE_PREFIX) :]
     # Validate against the canonical slug shape — anything else (path
     # traversal, draft-tree probing, .iterations/ access) gets rejected
     # before we touch the filesystem.

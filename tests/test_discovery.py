@@ -34,12 +34,20 @@ def _fail(stderr: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_search_repos_parses_gh_output(monkeypatch: pytest.MonkeyPatch) -> None:
-    payload = json.dumps([
-        {"fullName": "kubernetes/website", "url": "https://github.com/kubernetes/website",
-         "license": {"key": "apache-2.0", "spdxId": "Apache-2.0"}},
-        {"fullName": "some/repo", "url": "https://github.com/some/repo",
-         "license": {"key": "mit", "spdxId": "MIT"}},
-    ])
+    payload = json.dumps(
+        [
+            {
+                "fullName": "kubernetes/website",
+                "url": "https://github.com/kubernetes/website",
+                "license": {"key": "apache-2.0", "spdxId": "Apache-2.0"},
+            },
+            {
+                "fullName": "some/repo",
+                "url": "https://github.com/some/repo",
+                "license": {"key": "mit", "spdxId": "MIT"},
+            },
+        ]
+    )
     monkeypatch.setattr(gh_mod.subprocess, "run", MagicMock(return_value=_ok(payload)))
     candidates = search_repos("kubernetes", limit=5)
     assert len(candidates) == 2
@@ -50,7 +58,8 @@ def test_search_repos_parses_gh_output(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_search_repos_missing_gh_binary(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        gh_mod.subprocess, "run",
+        gh_mod.subprocess,
+        "run",
         MagicMock(side_effect=FileNotFoundError("gh")),
     )
     with pytest.raises(GitHubSearchError, match="not found"):
@@ -58,16 +67,15 @@ def test_search_repos_missing_gh_binary(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_search_repos_nonzero_exit(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        gh_mod.subprocess, "run", MagicMock(return_value=_fail("auth required"))
-    )
+    monkeypatch.setattr(gh_mod.subprocess, "run", MagicMock(return_value=_fail("auth required")))
     with pytest.raises(GitHubSearchError, match="exited 1"):
         search_repos("anything")
 
 
 def test_search_repos_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        gh_mod.subprocess, "run",
+        gh_mod.subprocess,
+        "run",
         MagicMock(side_effect=subprocess.TimeoutExpired("gh", 30)),
     )
     with pytest.raises(GitHubSearchError, match="timed out"):
@@ -81,9 +89,11 @@ def test_search_repos_bad_json(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_search_repos_no_license_field(monkeypatch: pytest.MonkeyPatch) -> None:
-    payload = json.dumps([
-        {"fullName": "a/b", "url": "https://github.com/a/b", "license": None},
-    ])
+    payload = json.dumps(
+        [
+            {"fullName": "a/b", "url": "https://github.com/a/b", "license": None},
+        ]
+    )
     monkeypatch.setattr(gh_mod.subprocess, "run", MagicMock(return_value=_ok(payload)))
     candidates = search_repos("topic")
     assert candidates[0].spdx_license is None
@@ -133,12 +143,16 @@ def test_classify_html_empty_body() -> None:
 
 
 def test_cli_discover_prints_table(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    payload = json.dumps([
-        {"fullName": "good/permissive", "url": "https://github.com/good/permissive",
-         "license": {"key": "mit", "spdxId": "MIT"}},
-        {"fullName": "bad/unknown", "url": "https://github.com/bad/unknown",
-         "license": None},
-    ])
+    payload = json.dumps(
+        [
+            {
+                "fullName": "good/permissive",
+                "url": "https://github.com/good/permissive",
+                "license": {"key": "mit", "spdxId": "MIT"},
+            },
+            {"fullName": "bad/unknown", "url": "https://github.com/bad/unknown", "license": None},
+        ]
+    )
     monkeypatch.setattr(gh_mod.subprocess, "run", MagicMock(return_value=_ok(payload)))
     result = runner.invoke(app, ["discover", "kubernetes", "--root", str(tmp_path)])
     assert result.exit_code == 0
@@ -154,7 +168,8 @@ def test_cli_discover_prints_table(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
 
 def test_cli_discover_gh_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
-        gh_mod.subprocess, "run",
+        gh_mod.subprocess,
+        "run",
         MagicMock(side_effect=FileNotFoundError("gh")),
     )
     result = runner.invoke(app, ["discover", "x", "--root", str(tmp_path)])
