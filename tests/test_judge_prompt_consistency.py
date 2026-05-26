@@ -36,3 +36,24 @@ def test_every_severity_named_in_every_judge_prompt() -> None:
     ]:
         for severity in JUDGE_SEVERITIES:
             assert severity in prompt, f"{prompt_label} doesn't mention severity {severity!r}"
+
+
+def test_every_judge_prompt_hard_penalises_missing_source_section() -> None:
+    """Change #9 rule: missing `## Source` in body → provenance_quality ≤ 0.4.
+
+    All three judge prompts must encode this rule explicitly. Without this
+    test, the rule can silently drift across the three duplicated prompts.
+    """
+    for prompt_label, prompt in [
+        ("anthropic JUDGE_SYSTEM_PROMPT", JUDGE_SYSTEM_PROMPT),
+        ("claude_code _JUDGE_PROMPT_HEADER", _JUDGE_PROMPT_HEADER),
+        ("ollama _JUDGE_SYSTEM", _JUDGE_SYSTEM),
+    ]:
+        assert "## Source" in prompt, (
+            f"{prompt_label} doesn't mention the `## Source` section "
+            f"(change #9 mandates body-level citation)"
+        )
+        assert "0.4" in prompt, (
+            f"{prompt_label} doesn't encode the hard penalty (≤ 0.4) "
+            f"for missing source section"
+        )
