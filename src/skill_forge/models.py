@@ -383,7 +383,7 @@ class RunEvent(BaseModel):
     @field_validator("event")
     @classmethod
     def _event_allowed(cls, v: str) -> str:
-        allowed = {"imported", "judged", "promoted", "demoted", "refined", "checked"}
+        allowed = {"imported", "judged", "promoted", "demoted", "refined", "checked", "released"}
         if v not in allowed:
             raise ValueError(f"RunEvent.event must be one of {sorted(allowed)}, got {v!r}")
         return v
@@ -416,6 +416,67 @@ class SourcesFile(BaseModel):
     def _slug(cls, v: str) -> str:
         if not SLUG_RE.fullmatch(v):
             raise ValueError(f"SourcesFile.slug must be slug-shaped, got {v!r}")
+        return v
+
+
+class ReleaseSkillEntry(BaseModel):
+    """One skill's frozen state inside a release manifest."""
+
+    model_config = _STRICT
+    slug: str
+    sha256: str  # sha256 of the SKILL.md bytes as included in the tarball
+    signature: str | None = None  # the skill's Ed25519 sig at release time
+    origin: str | None = None
+
+    @field_validator("slug")
+    @classmethod
+    def _slug(cls, v: str) -> str:
+        if not SLUG_RE.fullmatch(v):
+            raise ValueError(f"ReleaseSkillEntry.slug must be slug-shaped, got {v!r}")
+        return v
+
+    @field_validator("sha256")
+    @classmethod
+    def _sha(cls, v: str) -> str:
+        if not SHA256_RE.fullmatch(v):
+            raise ValueError(f"ReleaseSkillEntry.sha256 must be hex64, got {v!r}")
+        return v
+
+
+class ReleaseManifest(BaseModel):
+    """Signed, version-pinned snapshot of N skills at a point in time."""
+
+    model_config = _STRICT
+    version: str
+    created: datetime
+    identity_fingerprint: str  # instance_id of the signer
+    skills: list[ReleaseSkillEntry]
+    tarball_sha256: str  # sha256 of releases/<version>.tar.gz
+    signature: str | None = None  # over canonical payload (set after sign)
+
+    @field_validator("version")
+    @classmethod
+    def _version(cls, v: str) -> str:
+        # Reuses SLUG_RE so the version is safe as a filename component.
+        if not SLUG_RE.fullmatch(v):
+            raise ValueError(
+                f"ReleaseManifest.version must be slug-shaped (a-z0-9, hyphens), got {v!r}. "
+                "Try `v1`, `v2026-05-26`, or `1-0-0`."
+            )
+        return v
+
+    @field_validator("tarball_sha256")
+    @classmethod
+    def _tarball_sha(cls, v: str) -> str:
+        if not SHA256_RE.fullmatch(v):
+            raise ValueError(f"ReleaseManifest.tarball_sha256 must be hex64, got {v!r}")
+        return v
+
+    @field_validator("created")
+    @classmethod
+    def _tz_aware(cls, v: datetime) -> datetime:
+        if v.tzinfo is None or v.utcoffset() is None:
+            raise ValueError("ReleaseManifest.created must be timezone-aware")
         return v
 
 

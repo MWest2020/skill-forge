@@ -754,6 +754,89 @@ peer_app = typer.Typer(
 )
 app.add_typer(peer_app, name="peer")
 
+release_app = typer.Typer(
+    name="release",
+    help="Snapshot N skills into a signed, versioned bundle.",
+    no_args_is_help=True,
+)
+app.add_typer(release_app, name="release")
+
+
+@release_app.command("create")
+def release_create(
+    version: Annotated[str, typer.Argument(help="Slug-shaped version (e.g. v1, v2026-05-26).")],
+    include: Annotated[
+        str | None,
+        typer.Option(
+            "--include",
+            help="Comma-separated slugs to bundle (default: every promoted skill).",
+        ),
+    ] = None,
+    message: Annotated[str | None, typer.Option("--message", help="Release notes.")] = None,
+    force: Annotated[bool, typer.Option("--force", help="Overwrite existing release.")] = False,
+    root: RootOpt = None,
+    home: HomeOpt = None,
+) -> None:
+    """Build releases/<version>.{yml,tar.gz} from the live skill tree."""
+    from skill_forge.release import ReleaseError, create_release
+
+    base = _resolve_root(root)
+    identity = _load_identity(home)
+    slugs = [s.strip() for s in include.split(",")] if include else None
+    try:
+        summary = create_release(
+            base, version, identity=identity, include=slugs, message=message, force=force
+        )
+    except ReleaseError as exc:
+        typer.secho(f"release failed: {exc}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1) from None
+    typer.echo(
+        f"released {summary.version} ({summary.skill_count} skills) "
+        f"signed by {summary.identity_fingerprint}"
+    )
+    typer.echo(f"  manifest: {summary.manifest_path}")
+    typer.echo(f"  tarball:  {summary.tarball_path}")
+
+
+@release_app.command("list")
+def release_list(root: RootOpt = None) -> None:
+    """Show every release in the instance."""
+    from skill_forge.release import list_releases
+
+    manifests = list_releases(_resolve_root(root))
+    if not manifests:
+        typer.echo("no releases yet. Create one: `forge release create <version>`")
+        return
+    table = Table(title="Releases")
+    table.add_column("version")
+    table.add_column("created")
+    table.add_column("signer")
+    table.add_column("skills")
+    for m in manifests:
+        table.add_row(
+            m.version, m.created.isoformat(), m.identity_fingerprint, str(len(m.skills))
+        )
+    Console().print(table)
+
+
+@release_app.command("verify")
+def release_verify(
+    version: Annotated[str, typer.Argument(help="Release version to verify.")],
+    root: RootOpt = None,
+    home: HomeOpt = None,
+) -> None:
+    """Re-hash + re-verify-signature for a release."""
+    from skill_forge.release import ReleaseError, verify_release
+
+    base = _resolve_root(root)
+    identity = _load_identity(home)
+    try:
+        verify_release(base, version, identity=identity)
+    except ReleaseError as exc:
+        typer.secho(f"verify FAILED: {exc}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1) from None
+    typer.echo(f"verified {version}: manifest signature + tarball + every skill sha256 match")
+
 
 @app.command()
 def subscribe(
