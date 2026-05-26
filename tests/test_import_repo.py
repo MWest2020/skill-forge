@@ -103,6 +103,8 @@ def test_strips_git_suffix(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
 
 
 def test_imports_all_skill_md_in_tree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import hashlib
+
     tree = {
         "tree": [
             {"path": "README.md", "type": "blob"},
@@ -129,11 +131,51 @@ def test_imports_all_skill_md_in_tree(monkeypatch: pytest.MonkeyPatch, tmp_path:
     result = import_github_repo(tmp_path, "https://github.com/owner/repo")
     assert sorted(s.name for s in result.imported) == ["alpha-skill", "beta-skill"]
     assert result.skipped == []
-    # Source URL was rewritten to the GitHub blob URL
     sources = fs.read_sources(tmp_path, "alpha-skill")
+    # Provenance: blob URL points at the original upstream file.
     assert sources.sources[0].url == (
         "https://github.com/owner/repo/blob/main/skills/alpha/SKILL.md"
     )
+    # Provenance: sha256 must match the RAW upstream bytes, so that
+    # re-fetching the blob URL and hashing the response yields the same
+    # value. Recording the post-normalization sha would silently break this.
+    expected_sha = hashlib.sha256(_VALID_SKILL.encode("utf-8")).hexdigest()
+    assert sources.sources[0].sha256 == expected_sha
+
+
+def test_audit_event_records_blob_url_not_temp_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Regression: the audit JSONL must reference the upstream blob URL.
+
+    Earlier shape used `import_file` against a staged tempfile and rewrote
+    the URL in sources.yml afterward, which left the audit event pointing
+    at a now-deleted temp path. Forever. That broke provenance auditing.
+    """
+    tree = {"tree": [{"path": "skills/alpha/SKILL.md", "type": "blob"}]}
+    _stub_gh(
+        monkeypatch,
+        {
+            "contents/skills/alpha/SKILL.md": _ok(
+                json.dumps({"type": "file", "encoding": "base64", "content": _b64(_VALID_SKILL)})
+            ),
+            "git/trees/main": _ok(json.dumps(tree)),
+            "repos/owner/repo": _ok("main\n"),
+        },
+    )
+    import_github_repo(tmp_path, "https://github.com/owner/repo")
+    run_files = list((tmp_path / "runs").glob("*.jsonl"))
+    assert run_files, "audit run file should exist"
+    events = [json.loads(line) for line in run_files[0].read_text().splitlines() if line.strip()]
+    imported_events = [e for e in events if e["event"] == "imported"]
+    assert len(imported_events) == 1
+    md = imported_events[0]["metadata"]
+    assert md["source_url"] == (
+        "https://github.com/owner/repo/blob/main/skills/alpha/SKILL.md"
+    )
+    # No temp-path leakage in any metadata value.
+    for value in md.values():
+        assert ".tmp" not in str(value), f"temp path leaked into audit metadata: {value!r}"
 
 
 def test_skips_malformed_skill_md(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
