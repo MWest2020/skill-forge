@@ -329,6 +329,42 @@ def import_command(
     typer.echo(f"  Sources:    sources/{skill.name}.yml ({sources[0].url})")
 
 
+@app.command(name="import-repo")
+def import_repo_command(
+    url: str,
+    origin_tag: OriginTagOpt = None,
+    ref: Annotated[
+        str | None, typer.Option("--ref", help="Branch or commit SHA (default: repo HEAD)")
+    ] = None,
+    max_skills: Annotated[
+        int, typer.Option("--max-skills", help="Refuse repos with more than this many SKILL.md")
+    ] = 50,
+    root: RootOpt = None,
+) -> None:
+    """Walk a GitHub repo and import every SKILL.md found inside it."""
+    from skill_forge.import_skill import RepoImportError, import_github_repo
+
+    base = _resolve_root(root)
+    identity = _load_identity(home=None)
+    try:
+        result = import_github_repo(
+            base,
+            url,
+            identity=identity,
+            origin_tag=origin_tag,
+            ref=ref,
+            max_skills=max_skills,
+        )
+    except RepoImportError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    for skill in result.imported:
+        typer.echo(f"  imported: {skill.name}")
+    for path, reason in result.skipped:
+        typer.echo(f"  skipped:  {path}  ({reason[:80]})", err=True)
+    typer.echo(f"\n{len(result.imported)} imported, {len(result.skipped)} skipped from {url}")
+
+
 @app.command(name="import-dir")
 def import_dir_command(
     src_dir: Path,

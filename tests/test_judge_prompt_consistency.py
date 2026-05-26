@@ -54,6 +54,5 @@ def test_every_judge_prompt_hard_penalises_missing_source_section() -> None:
             f"(change #9 mandates body-level citation)"
         )
         assert "0.4" in prompt, (
-            f"{prompt_label} doesn't encode the hard penalty (≤ 0.4) "
-            f"for missing source section"
+            f"{prompt_label} doesn't encode the hard penalty (≤ 0.4) for missing source section"
         )
