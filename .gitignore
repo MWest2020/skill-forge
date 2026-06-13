@@ -57,3 +57,8 @@ runs/
 # Drafts are intentionally committed (audit trail of rejected skills).
 # Discovery blocklist log stays local — contains URLs that may be sensitive.
 discovery_blocked.log
+
+# Local working state (curation drafts, provenance, sync manifests)
+skills/_draft/
+sources/
+sync/
