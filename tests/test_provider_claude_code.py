@@ -164,14 +164,16 @@ def _judge_json(value: float = 0.8) -> str:
 
 def test_claude_code_judge_parses_clean_json(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_run(monkeypatch, return_value=_ok_completed(_judge_json(0.9)))
-    score, findings = ClaudeCodeProvider().judge(_skill(), weights=_WEIGHTS)
-    assert score.total == pytest.approx(0.9)
-    assert findings == []
+    run = ClaudeCodeProvider().judge(_skill())
+    assert run.axes["schema_compliance"] == pytest.approx(0.9)
+    assert run.findings == []
+    assert run.model_id.startswith("claude_code:")
+    assert len(run.prompt_sha256) == 64
 
 
 def test_claude_code_judge_passes_skill_via_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = _patch_run(monkeypatch, return_value=_ok_completed(_judge_json()))
-    ClaudeCodeProvider().judge(_skill(), weights=_WEIGHTS)
+    ClaudeCodeProvider().judge(_skill())
     prompt = fake.call_args.kwargs["input"]
     assert "## When to use" in prompt
     assert "demo" in prompt
@@ -180,11 +182,11 @@ def test_claude_code_judge_passes_skill_via_stdin(monkeypatch: pytest.MonkeyPatc
 def test_claude_code_judge_raises_on_unparseable(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_run(monkeypatch, return_value=_ok_completed("not JSON"))
     with pytest.raises(LLMProviderError, match="parseable JSON"):
-        ClaudeCodeProvider().judge(_skill(), weights=_WEIGHTS)
+        ClaudeCodeProvider().judge(_skill())
 
 
 def test_claude_code_judge_raises_on_missing_axis(monkeypatch: pytest.MonkeyPatch) -> None:
     bad = '{"schema_compliance": 0.8, "clarity": 0.8, "findings": []}'
     _patch_run(monkeypatch, return_value=_ok_completed(bad))
-    with pytest.raises(LLMProviderError, match="failed validation"):
-        ClaudeCodeProvider().judge(_skill(), weights=_WEIGHTS)
+    with pytest.raises(LLMProviderError, match="axis"):
+        ClaudeCodeProvider().judge(_skill())

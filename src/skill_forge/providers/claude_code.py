@@ -11,12 +11,12 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from skill_forge.models import JudgeFinding, JudgeScore, Skill
+from skill_forge.models import JudgeFinding, JudgeRun, Skill
 
 from ._judge import (
-    build_judge_score,
     extract_json_object,
-    parse_findings,
+    parse_judge_axes,
+    prompt_sha256,
     serialize_skill_for_judge,
     serialize_skill_for_refine,
 )
@@ -95,14 +95,20 @@ class ClaudeCodeProvider(LLMProvider):
         except ValidationError as exc:
             raise LLMProviderError(f"claude output failed validation: {exc}") from exc
 
-    def judge(
-        self, skill: Skill, *, weights: dict[str, float]
-    ) -> tuple[JudgeScore, list[JudgeFinding]]:
+    def judge(self, skill: Skill, *, temperature: float = 0.0) -> JudgeRun:
+        # `claude -p` exposes no temperature flag; the orchestrator records the
+        # requested value, but it is not applied for this provider.
         prompt = f"{_JUDGE_PROMPT_HEADER}\n\n--- skill ---\n\n{serialize_skill_for_judge(skill)}\n"
         data = self._run_claude(prompt)
         if data is None:
             raise LLMProviderError("claude did not return parseable JSON for judge")
-        return _parse_judge_payload(data, weights)
+        axes, findings = parse_judge_axes(data)
+        return JudgeRun(
+            axes=axes,
+            findings=findings,
+            model_id=f"claude_code:{self._binary}",
+            prompt_sha256=prompt_sha256(prompt),
+        )
 
     def refine(
         self,
@@ -194,28 +200,5 @@ Output shape (no extra keys, no `total` — the caller computes it):
 """
 
 
-def _parse_judge_payload(
-    data: dict[str, Any], weights: dict[str, float]
-) -> tuple[JudgeScore, list[JudgeFinding]]:
-    findings_raw = data.get("findings", [])
-    if not isinstance(findings_raw, list):
-        raise LLMProviderError("judge JSON `findings` must be a list")
-    try:
-        axes = {
-            axis: float(data[axis])
-            for axis in (
-                "schema_compliance",
-                "clarity",
-                "actionability",
-                "gap_coverage",
-                "provenance_quality",
-            )
-        }
-        findings = parse_findings(findings_raw)
-        score = build_judge_score(axes, weights)
-    except (KeyError, TypeError, ValueError, ValidationError) as exc:
-        raise LLMProviderError(f"judge JSON failed validation: {exc}") from exc
-    return score, findings
-
-
-# extract_json_object now lives in _judge.py (shared across providers).
+# Judge payload parsing now lives in _judge.parse_judge_axes (shared across
+# providers); extract_json_object likewise.

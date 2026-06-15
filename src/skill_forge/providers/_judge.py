@@ -6,10 +6,12 @@ Used by all three LLMProvider implementations.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any
 
 from skill_forge.models import JUDGE_AXES, JudgeFinding, JudgeScore, Skill
+from skill_forge.providers.base import LLMProviderError
 
 
 def compute_total(axes: dict[str, float], weights: dict[str, float]) -> float:
@@ -21,6 +23,24 @@ def build_judge_score(axes: dict[str, float], weights: dict[str, float]) -> Judg
     """Construct a validated JudgeScore from per-axis floats + weights."""
     total = compute_total(axes, weights)
     return JudgeScore.model_validate({**axes, "total": total}, context={"weights": weights})
+
+
+def prompt_sha256(prompt: str) -> str:
+    """sha256 of the exact prompt string a provider sends — recorded for audit."""
+    return hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+
+
+def parse_judge_axes(data: dict[str, Any]) -> tuple[dict[str, float], list[JudgeFinding]]:
+    """Pull the 5 per-axis floats + findings from a judge payload (JSON object
+    or a tool-use input dict). Shared by all providers so the contract lives once."""
+    findings_raw = data.get("findings", [])
+    if not isinstance(findings_raw, list):
+        raise LLMProviderError("judge payload `findings` must be a list")
+    try:
+        axes = {axis: float(data[axis]) for axis in JUDGE_AXES}
+    except (KeyError, TypeError, ValueError) as exc:
+        raise LLMProviderError(f"judge payload missing or non-numeric axis: {exc}") from exc
+    return axes, parse_findings(findings_raw)
 
 
 def parse_findings(raw: list[dict[str, str]]) -> list[JudgeFinding]:

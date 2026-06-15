@@ -14,12 +14,12 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 
-from skill_forge.models import JudgeFinding, JudgeScore, Skill
+from skill_forge.models import JudgeFinding, JudgeRun, Skill
 
 from ._judge import (
-    build_judge_score,
     extract_json_object,
-    parse_findings,
+    parse_judge_axes,
+    prompt_sha256,
     serialize_skill_for_judge,
     serialize_skill_for_refine,
 )
@@ -54,11 +54,16 @@ class OllamaProvider(LLMProvider):
         except ValidationError as exc:
             raise LLMProviderError(f"ollama extract output failed validation: {exc}") from exc
 
-    def judge(
-        self, skill: Skill, *, weights: dict[str, float]
-    ) -> tuple[JudgeScore, list[JudgeFinding]]:
-        data = self._chat(system=_JUDGE_SYSTEM, user=serialize_skill_for_judge(skill))
-        return _parse_judge_payload(data, weights)
+    def judge(self, skill: Skill, *, temperature: float = 0.0) -> JudgeRun:
+        user = serialize_skill_for_judge(skill)
+        data = self._chat(system=_JUDGE_SYSTEM, user=user, temperature=temperature)
+        axes, findings = parse_judge_axes(data)
+        return JudgeRun(
+            axes=axes,
+            findings=findings,
+            model_id=f"ollama:{self._model}",
+            prompt_sha256=prompt_sha256(f"{_JUDGE_SYSTEM}\n\n{user}"),
+        )
 
     def refine(
         self,
@@ -77,19 +82,22 @@ class OllamaProvider(LLMProvider):
             raise LLMProviderError("ollama refine output missing non-empty `body`")
         return body
 
-    def _chat(self, *, system: str, user: str) -> dict[str, Any]:
+    def _chat(self, *, system: str, user: str, temperature: float | None = None) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "model": self._model,
+            "stream": False,
+            "format": "json",
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        }
+        if temperature is not None:
+            payload["options"] = {"temperature": temperature}
         try:
             response = httpx.post(
                 f"{self._host}/api/chat",
-                json={
-                    "model": self._model,
-                    "stream": False,
-                    "format": "json",
-                    "messages": [
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user},
-                    ],
-                },
+                json=payload,
                 timeout=self._timeout,
             )
         except httpx.HTTPError as exc:
@@ -115,28 +123,7 @@ class OllamaProvider(LLMProvider):
         return parsed
 
 
-def _parse_judge_payload(
-    data: dict[str, Any], weights: dict[str, float]
-) -> tuple[JudgeScore, list[JudgeFinding]]:
-    findings_raw = data.get("findings", [])
-    if not isinstance(findings_raw, list):
-        raise LLMProviderError("ollama judge `findings` must be a list")
-    try:
-        axes = {
-            axis: float(data[axis])
-            for axis in (
-                "schema_compliance",
-                "clarity",
-                "actionability",
-                "gap_coverage",
-                "provenance_quality",
-            )
-        }
-        findings = parse_findings(findings_raw)
-        score = build_judge_score(axes, weights)
-    except (KeyError, TypeError, ValueError, ValidationError) as exc:
-        raise LLMProviderError(f"ollama judge payload failed validation: {exc}") from exc
-    return score, findings
+# Judge payload parsing now lives in _judge.parse_judge_axes (shared).
 
 
 _EXTRACT_SYSTEM = """\

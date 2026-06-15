@@ -174,15 +174,18 @@ def test_anthropic_judge_returns_score_and_findings(monkeypatch: pytest.MonkeyPa
     )
     _install_fake_client(monkeypatch, fake)
 
-    score, findings = AnthropicProvider().judge(_skill(), weights=_WEIGHTS)
-    assert score.total == pytest.approx(sum(_WEIGHTS[a] * 0.8 for a in JUDGE_AXES))
-    assert len(findings) == 1
-    assert findings[0].axis == "clarity"
+    run = AnthropicProvider().judge(_skill(), temperature=0.0)
+    assert run.axes["clarity"] == pytest.approx(0.8)
+    assert len(run.findings) == 1
+    assert run.findings[0].axis == "clarity"
+    assert run.model_id.startswith("anthropic:")
+    assert len(run.prompt_sha256) == 64
 
-    # Forced tool_choice + cache_control
+    # Forced tool_choice + cache_control + temperature passed through
     kwargs = fake.messages.create.call_args.kwargs
     assert kwargs["tool_choice"] == {"type": "tool", "name": "score_skill"}
     assert kwargs["system"][0]["cache_control"] == {"type": "ephemeral"}
+    assert kwargs["temperature"] == 0.0
 
 
 def test_anthropic_judge_raises_when_no_tool_call(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -195,7 +198,7 @@ def test_anthropic_judge_raises_when_no_tool_call(monkeypatch: pytest.MonkeyPatc
     _install_fake_client(monkeypatch, fake)
 
     with pytest.raises(LLMProviderError, match="did not emit"):
-        AnthropicProvider().judge(_skill(), weights=_WEIGHTS)
+        AnthropicProvider().judge(_skill())
 
 
 def test_anthropic_judge_raises_on_bad_payload(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -212,5 +215,5 @@ def test_anthropic_judge_raises_on_bad_payload(monkeypatch: pytest.MonkeyPatch) 
         }
     )
     _install_fake_client(monkeypatch, fake)
-    with pytest.raises(LLMProviderError, match="failed validation"):
-        AnthropicProvider().judge(_skill(), weights=_WEIGHTS)
+    with pytest.raises(LLMProviderError, match="axis"):
+        AnthropicProvider().judge(_skill())

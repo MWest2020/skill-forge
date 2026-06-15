@@ -89,16 +89,25 @@ def test_judge_returns_score(monkeypatch: pytest.MonkeyPatch) -> None:
         }
     )
     _patch_post(monkeypatch, return_value=_envelope(payload))
-    score, findings = OllamaProvider().judge(_skill(), weights=_WEIGHTS)
-    assert score.total == pytest.approx(0.7)
-    assert findings[0].axis == "clarity"
+    run = OllamaProvider().judge(_skill())
+    assert run.axes["clarity"] == pytest.approx(0.7)
+    assert run.findings[0].axis == "clarity"
+    assert run.model_id.startswith("ollama:")
+    assert len(run.prompt_sha256) == 64
+
+
+def test_judge_passes_temperature(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = json.dumps({**{axis: 0.7 for axis in JUDGE_AXES}, "findings": []})
+    fake = _patch_post(monkeypatch, return_value=_envelope(payload))
+    OllamaProvider().judge(_skill(), temperature=0.0)
+    assert fake.call_args.kwargs["json"]["options"] == {"temperature": 0.0}
 
 
 def test_judge_missing_axis_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     payload = json.dumps({"schema_compliance": 0.8, "findings": []})
     _patch_post(monkeypatch, return_value=_envelope(payload))
-    with pytest.raises(LLMProviderError, match="validation"):
-        OllamaProvider().judge(_skill(), weights=_WEIGHTS)
+    with pytest.raises(LLMProviderError, match="axis"):
+        OllamaProvider().judge(_skill())
 
 
 # --- refine ------------------------------------------------------------------

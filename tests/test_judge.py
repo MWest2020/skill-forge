@@ -13,7 +13,7 @@ from skill_forge.identity import from_seed
 from skill_forge.models import (
     JUDGE_AXES,
     JudgeFinding,
-    JudgeScore,
+    JudgeRun,
     Skill,
     Source,
     SourceRef,
@@ -42,12 +42,10 @@ class _FakeJudgeProvider(FakeProvider):
         self.axes = axes or {axis: 0.8 for axis in JUDGE_AXES}
         self.findings = findings or []
 
-    def judge(
-        self, skill: Skill, *, weights: dict[str, float]
-    ) -> tuple[JudgeScore, list[JudgeFinding]]:
-        from skill_forge.providers._judge import build_judge_score
-
-        return build_judge_score(self.axes, weights), self.findings
+    def judge(self, skill: Skill, *, temperature: float = 0.0) -> JudgeRun:
+        return JudgeRun(
+            axes=self.axes, findings=self.findings, model_id="fake:test", prompt_sha256="a" * 64
+        )
 
 
 def _seed_skill_on_disk(tmp_path: Path, slug: str = "demo") -> None:

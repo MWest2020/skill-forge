@@ -1,6 +1,7 @@
-"""Orchestrate the judge call: provider → score+findings → audit + sources.yml.
+"""Orchestrate the judge call: provider → N runs → per-axis median → audit.
 
-Spec: openspec/changes/add-import-and-judge/specs/judge/spec.md
+Spec: openspec/changes/make-judge-reproducible/specs/judge-provenance/spec.md
+(supersedes the single-run judge from add-import-and-judge).
 """
 
 from __future__ import annotations
@@ -10,7 +11,16 @@ from pathlib import Path
 
 from skill_forge.audit import append_run_event, next_run_id
 from skill_forge.identity import Identity
-from skill_forge.models import JudgeFinding, JudgeScore, RunEvent, RunSummary
+from skill_forge.models import (
+    JUDGE_AXES,
+    JudgeFinding,
+    JudgeProvenance,
+    JudgeRun,
+    JudgeScore,
+    RunEvent,
+    RunSummary,
+)
+from skill_forge.providers._judge import build_judge_score, compute_total
 from skill_forge.providers.base import LLMProvider
 from skill_forge.storage import filesystem as storage
 
@@ -24,10 +34,43 @@ def judge_skill(
     provider: LLMProvider,
     weights: dict[str, float],
     identity: Identity | None = None,
+    runs: int = 3,
+    temperature: float = 0.0,
+    rubric_version: str = "1",
 ) -> tuple[JudgeScore, list[JudgeFinding]]:
-    """Score `slug` against the rubric; append RunEvent + RunSummary."""
+    """Score `slug` N times, reduce per axis by median, and record full
+    provenance. Returns the final (median) score + representative findings.
+
+    The per-axis median is variance-bounded, not bit-exact: hosted models drift
+    across versions, so the audit record supports *re-checking* a score from
+    pinned inputs, not byte-for-byte replay.
+    """
+    if runs < 1:
+        raise ValueError(f"runs must be >= 1, got {runs}")
     skill = storage.read_skill(root, slug, identity=identity)
-    score, findings = provider.judge(skill, weights=weights)
+
+    judge_runs = [provider.judge(skill, temperature=temperature) for _ in range(runs)]
+    # Same skill + same prompt builder → identical prompt every run. Assert it so
+    # a provider that accidentally varies the prompt can't slip a bad record in.
+    prompt_hashes = {r.prompt_sha256 for r in judge_runs}
+    if len(prompt_hashes) != 1:
+        raise ValueError(f"judge prompt drifted across runs: {prompt_hashes}")
+
+    median_axes = {axis: _lower_median([r.axes[axis] for r in judge_runs]) for axis in JUDGE_AXES}
+    score = build_judge_score(median_axes, weights)
+    findings = _representative_findings(judge_runs, weights)
+
+    first = judge_runs[0]
+    provenance = JudgeProvenance(
+        provider=first.model_id.split(":", 1)[0],
+        model_id=first.model_id,
+        rubric_version=rubric_version,
+        prompt_sha256=first.prompt_sha256,
+        temperature=temperature,
+        runs=runs,
+        raw_axes=[r.axes for r in judge_runs],
+        median_axes=median_axes,
+    )
 
     run_id = next_run_id(root)
     append_run_event(
@@ -40,11 +83,26 @@ def judge_skill(
             scores=score,
             findings=findings,
             promoted=False,
+            judge_provenance=provenance,
         ),
     )
-
     _append_run_summary(root, slug, run_id, score.total, promoted=False)
     return score, findings
+
+
+def _lower_median(values: list[float]) -> float:
+    """Median, taking the lower-middle for even counts — conservative for a gate
+    (a borderline score is never nudged up by the reduction)."""
+    return sorted(values)[(len(values) - 1) // 2]
+
+
+def _representative_findings(
+    runs: list[JudgeRun], weights: dict[str, float]
+) -> list[JudgeFinding]:
+    """Findings from the run whose total is the lower-median of the runs — a
+    real run's explanation, closest to the score that gates."""
+    ordered = sorted(runs, key=lambda r: compute_total(r.axes, weights))
+    return ordered[(len(ordered) - 1) // 2].findings
 
 
 def _append_run_summary(

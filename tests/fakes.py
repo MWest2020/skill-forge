@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from skill_forge.models import JudgeFinding, JudgeScore, Skill
+from skill_forge.models import JudgeFinding, JudgeRun, Skill
 from skill_forge.providers.base import DistilledDraft, LLMProvider
 
 
@@ -12,9 +12,7 @@ class FakeProvider(LLMProvider):
     def extract_draft(self, *, source_url: str, source_text: str) -> DistilledDraft:
         raise NotImplementedError("FakeProvider.extract_draft not overridden")
 
-    def judge(
-        self, skill: Skill, *, weights: dict[str, float]
-    ) -> tuple[JudgeScore, list[JudgeFinding]]:
+    def judge(self, skill: Skill, *, temperature: float = 0.0) -> JudgeRun:
         raise NotImplementedError("FakeProvider.judge not overridden")
 
     def refine(

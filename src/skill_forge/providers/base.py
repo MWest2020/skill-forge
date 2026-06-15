@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from skill_forge.models import SLUG_RE, JudgeFinding, JudgeScore, Skill
+from skill_forge.models import SLUG_RE, JudgeFinding, JudgeRun, Skill
 
 
 class DistilledDraft(BaseModel):
@@ -49,14 +49,14 @@ class LLMProvider(ABC):
         """Return a draft for the given source. Raises LLMProviderError on failure."""
 
     @abstractmethod
-    def judge(
-        self, skill: Skill, *, weights: dict[str, float]
-    ) -> tuple[JudgeScore, list[JudgeFinding]]:
-        """Score `skill` against the rubric. Findings explain lost points.
+    def judge(self, skill: Skill, *, temperature: float = 0.0) -> JudgeRun:
+        """Score `skill` against the rubric at `temperature` (honored where the
+        backend supports it; the `claude_code` provider ignores it).
 
-        The provider returns per-axis floats and findings; total is computed
-        client-side from `weights` to avoid model/weight drift, so the returned
-        `JudgeScore.total` always matches the weighted sum exactly.
+        Returns a `JudgeRun`: per-axis floats, findings, the model identifier,
+        and the sha256 of the exact prompt sent. No total — it is derived
+        client-side from the rubric weights by the orchestrator, which calls
+        this N times and takes the per-axis median.
         """
 
     @abstractmethod
