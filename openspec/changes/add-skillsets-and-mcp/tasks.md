@@ -32,12 +32,11 @@ independently shippable; 5–8 (MCP) build on them.
   mcp` (FastMCP over stdio, bound to `--root`) and `skill_forge.mcp.server`
   with `build_server` + pure tool functions. Added `mcp` dependency. Test
   asserts the server advertises exactly the three tools. 281 passed.
-- [ ] **6. `list_skills` + `get_skill`.** Implement both read-only tools
-  (live-only; `get_skill` errors cleanly on unknown/draft slug). Tests assert
-  payload shape + draft invisibility.
-- [ ] **7. `get_skillset`.** Implement the bundle tool over
-  `live_skills_with_tag`; empty tag → `{tag, skills: []}`. Test the bundle and
-  the empty case.
+- [x] **6. `list_skills` + `get_skill`.** Tests cover live-only listing with
+  description (no body), tag filter, draft invisibility, and `get_skill`
+  raising on unknown/draft slug. (Logic landed in #5.)
+- [x] **7. `get_skillset`.** Tests cover the live-only bundle (bodies included)
+  and the empty-tag `{tag, skills: []}` case. (Logic landed in #5.)
 - [ ] **8. Read-only + provenance guarantees.** Assert no tool can reach draft
   skills, mutate state, or run a provider; every body payload carries `origin`.
   Add a README/`forge serve mcp --help` note on running it from a container.
