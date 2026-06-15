@@ -287,8 +287,20 @@ def _scan(directory: Path, *, draft: bool) -> list[SkillEntry]:
         # would otherwise fall through to the (also-falsy) legacy field.
         from_runs = _latest_run_score(root, child.name)
         score = from_runs if from_runs is not None else skill.judge_score
-        entries.append(SkillEntry(slug=child.name, draft=draft, judge_score=score))
+        entries.append(
+            SkillEntry(slug=child.name, draft=draft, judge_score=score, tags=skill.tags)
+        )
     return entries
+
+
+def live_skills_with_tag(root: Path, tag: str) -> list[str]:
+    """Slugs of **live** (promoted) skills whose `tags` include `tag`, sorted.
+
+    Draft skills are never included. An unknown tag yields an empty list, not
+    an error. A *skillset* is exactly this query — there is no stored bundle.
+    """
+    live = _scan(root / "skills", draft=False)
+    return sorted(e.slug for e in live if tag in e.tags)
 
 
 def _latest_run_score(root: Path, slug: str) -> float | None:

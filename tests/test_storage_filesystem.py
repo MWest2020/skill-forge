@@ -64,6 +64,28 @@ def test_list_skills_mixed_live_and_drafts(tmp_path: Path) -> None:
     assert entries[0].judge_score == 0.87
 
 
+def test_live_skills_with_tag(tmp_path: Path) -> None:
+    fs.write_skill(tmp_path, _skill("alpha").model_copy(update={"tags": ["security"]}), draft=False)
+    fs.write_skill(tmp_path, _skill("bravo").model_copy(update={"tags": ["web"]}), draft=False)
+    fs.write_skill(
+        tmp_path,
+        _skill("charlie", judge_score=None).model_copy(update={"tags": ["security"]}),
+        draft=True,
+    )
+
+    # Live-only, sorted; the draft 'charlie' is excluded despite the tag.
+    assert fs.live_skills_with_tag(tmp_path, "security") == ["alpha"]
+    assert fs.live_skills_with_tag(tmp_path, "web") == ["bravo"]
+    # Unknown tag -> empty, not an error.
+    assert fs.live_skills_with_tag(tmp_path, "nope") == []
+
+
+def test_skill_entry_carries_tags(tmp_path: Path) -> None:
+    fs.write_skill(tmp_path, _skill("alpha").model_copy(update={"tags": ["a", "b"]}), draft=False)
+    entry = next(e for e in fs.list_skills(tmp_path) if e.slug == "alpha")
+    assert entry.tags == ["a", "b"]
+
+
 def test_list_skills_skips_unparseable(tmp_path: Path) -> None:
     fs.write_skill(tmp_path, _skill("good"), draft=False)
     bad_dir = tmp_path / "skills" / "broken"

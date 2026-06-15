@@ -14,9 +14,10 @@ independently shippable; 5–8 (MCP) build on them.
   provenance). Spec updated accordingly. `_KNOWN_SKILL_FIELDS` updated too.
   Renders as `tags: []` when empty (consistent with the all-fields convention),
   so the "no empty line" goal was dropped — noted in the spec.
-- [ ] **2. Storage query.** Add `storage.live_skills_with_tag(root, tag)`
-  (live-only, sorted, empty on miss). Test against a fixture tree with mixed
-  live/draft + tags.
+- [x] **2. Storage query.** Added `storage.live_skills_with_tag(root, tag)`
+  (live-only, sorted, empty on miss) and a `tags` field on `SkillEntry` so the
+  ls Tags column (task 3) reuses the same scan. Tests cover the query + entry
+  tags.
 - [ ] **3. `ls --tag` + `tags` command.** Add the `--tag` filter and `Tags`
   column to `ls`; add `forge tags` (live tag counts). Tests via `CliRunner`.
 - [ ] **4. `sync --tag`.** Filter `sync`/`--unsync` to a skillset; exit 1 on an

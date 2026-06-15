@@ -6,7 +6,7 @@ Specs: openspec/changes/add-core-models-and-storage/specs/models/spec.md
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
 
@@ -500,6 +500,7 @@ class SkillEntry:
     slug: str
     draft: bool
     judge_score: float | None
+    tags: list[str] = field(default_factory=list)
 
 
 def model_to_jsonable(model: BaseModel) -> dict[str, Any]:
