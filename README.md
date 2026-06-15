@@ -147,6 +147,7 @@ authoritative plan lives in [`STRATEGY.md`](STRATEGY.md).
 | 9 | add-subscribe-and-cite | `forge subscribe` / `check-updates`, source citation |
 | 10 | add-import-repo | `forge import-repo` — bulk-import SKILL.md from a GitHub repo |
 | 11 | add-release | `forge release` — signed, version-pinned skill bundles |
+| 12 | add-skillsets-and-mcp | `tags` + skillsets, `ls --tag` / `forge tags` / `sync --tag`, read-only `forge serve mcp` (stdio) |
 
 **Descoped** by the `strip-to-curation-core` change (June 2026): #7
 `add-mcp-server-mode` (`serve`), #8 `add-federation` (`peer`), the
@@ -156,8 +157,15 @@ subscribe, signed release bundles, MCP server) was overhead that did not
 serve that use case. The source-citation half of #9 and the local
 provenance identity (#1b) stay. The shipped history above is kept for audit.
 
+**MCP later returned** in #12 `add-skillsets-and-mcp`, but narrow: a
+read-only, **stdio-only** `forge serve mcp` (three tools) that hands a
+*skillset* — live skills carrying a `tag` — to a containerized agent. It is
+not the multi-instance HTTP server that was cut; importing, judging, and
+promoting stay local.
+
 The live loop now is: `import` → `judge` → `refine`/`lineage` → `promote` →
-`sync`, with provenance tracked end to end.
+`sync` (optionally `--tag` for a skillset, or `serve mcp` to hand one to a
+container), with provenance tracked end to end.
 
 See [`openspec/project.md`](openspec/project.md) for full design context (note:
 its roadmap section is superseded by `STRATEGY.md`) and
