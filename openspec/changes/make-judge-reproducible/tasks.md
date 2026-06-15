@@ -16,12 +16,15 @@ One commit per task, each referencing the change ID. TDD: red test first.
   constant across runs, records `JudgeProvenance`. Findings come from the
   lower-median run by total. Landed with #2 for a green tree (coupled). Defaults
   runs=3/temp=0.0/rubric="1" so CLI threading (#4) is decoupled.
-- [ ] **4. Config wiring.** Add `rubric.version`, `judge.runs`, `judge.temperature`
-  to `config/default.yml`; thread through `cli`/`commands/lifecycle.py`;
-  validate `runs >= 1`. Test: config defaults load; `runs < 1` errors.
-- [ ] **5. `judge --explain` + footer.** `--explain` prints the latest judged
+- [x] **4. Config wiring.** Added `rubric.version`, `judge.runs`,
+  `judge.temperature` to `config/default.yml`; threaded through
+  `commands/lifecycle.py judge`; `runs < 1` exits 2 (and `judge_skill` raises).
+  Added `audit.latest_event` to read the trail back.
+- [x] **5. `judge --explain` + footer.** `--explain` prints the latest judged
   RunEvent's provenance (no re-run; exit 1 if none); normal judge prints the
-  median/prompt/model footer; `--runs N` override. Tests via `CliRunner`.
+  `judged N× (median), prompt …, model …` footer; `--runs N` override. CLI tests
+  cover explain success + no-record exit 1; orchestrator tests cover median +
+  provenance + runs>=1.
 - [ ] **6. Docs.** README + `config/default.yml` comments: N×-median, the
   claude_code temperature caveat, and that "auditable/re-checkable" ≠ bit-exact.
 

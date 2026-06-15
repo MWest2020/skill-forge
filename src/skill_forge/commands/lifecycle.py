@@ -3,10 +3,12 @@ draft/live boundary."""
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated
 
 import typer
 
+from skill_forge.audit import latest_event
 from skill_forge.cli import (
     HomeOpt,
     RootOpt,
@@ -22,20 +24,43 @@ from skill_forge.providers.base import LLMProviderError
 
 
 @app.command()
-def judge(slug: str, root: RootOpt = None, home: HomeOpt = None) -> None:
-    """Score a skill against the configured rubric."""
+def judge(
+    slug: str,
+    explain: Annotated[
+        bool,
+        typer.Option("--explain", help="Print the recorded provenance for the latest score."),
+    ] = False,
+    runs: Annotated[
+        int | None,
+        typer.Option("--runs", help="Override judge.runs (N) for this call."),
+    ] = None,
+    root: RootOpt = None,
+    home: HomeOpt = None,
+) -> None:
+    """Score a skill against the configured rubric (N runs, per-axis median)."""
     from skill_forge.evaluation.judge import judge_skill
 
     base = _resolve_root(root)
+    if explain:
+        _explain_latest_judge(base, slug)
+        return
+
     cfg = load_config(base)
     weights: dict[str, float] = cfg["rubric"]["weights"]
     promotion = cfg["promotion"]
+    rubric_version = str(cfg["rubric"].get("version", "1"))
+    judge_cfg = cfg.get("judge", {}) or {}
+    n = runs if runs is not None else int(judge_cfg.get("runs", 3))
+    if n < 1:
+        _die(f"judge.runs must be >= 1, got {n}", 2)
+    temperature = float(judge_cfg.get("temperature", 0.0))
     provider = _provider_or_exit(cfg, "judge")
 
     identity = _load_identity(home)
     try:
         score, findings = judge_skill(
-            base, slug, provider=provider, weights=weights, identity=identity
+            base, slug, provider=provider, weights=weights, identity=identity,
+            runs=n, temperature=temperature, rubric_version=rubric_version,
         )
     except FileNotFoundError as exc:
         _die(str(exc), 1)
@@ -43,6 +68,31 @@ def judge(slug: str, root: RootOpt = None, home: HomeOpt = None) -> None:
         _die(str(exc), 3)
 
     _print_judge_result(slug, score, findings, promotion)
+    prov = latest_event(base, slug, "judged")
+    if prov is not None and prov.judge_provenance is not None:
+        p = prov.judge_provenance
+        typer.echo(
+            f"\njudged {p.runs}× (median), prompt {p.prompt_sha256[:12]}, model {p.model_id}"
+        )
+
+
+def _explain_latest_judge(base: Path, slug: str) -> None:
+    event = latest_event(base, slug, "judged")
+    if event is None or event.judge_provenance is None:
+        _die(f"no judged record for {slug!r}; run `forge judge {slug}` first.", 1)
+    p = event.judge_provenance
+    typer.echo(f"Judge provenance for {slug} (run {event.run_id}):")
+    typer.echo(f"  provider:       {p.provider}")
+    typer.echo(f"  model:          {p.model_id}")
+    typer.echo(f"  rubric version: {p.rubric_version}")
+    typer.echo(f"  prompt sha256:  {p.prompt_sha256}")
+    typer.echo(f"  temperature:    {p.temperature}")
+    typer.echo(f"  runs:           {p.runs}")
+    for i, axes in enumerate(p.raw_axes, 1):
+        rendered = "  ".join(f"{a}={axes[a]:.2f}" for a in JUDGE_AXES)
+        typer.echo(f"  run {i}: {rendered}")
+    median = "  ".join(f"{a}={p.median_axes[a]:.2f}" for a in JUDGE_AXES)
+    typer.echo(f"  median: {median}")
 
 
 def _print_judge_result(

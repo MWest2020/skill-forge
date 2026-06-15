@@ -5,6 +5,9 @@
 # Each axis scores 0.0 - 1.0. The weighted sum is the total score.
 # Weights must sum to 1.0.
 rubric:
+  # Bump when axes/weights/judge prompt change; recorded in every judge's
+  # provenance so a score is tied to the rubric it was produced under.
+  version: "1"
   weights:
     schema_compliance: 0.20    # valid frontmatter, expected sections
     clarity:           0.20    # clear "when to use", no unexplained jargon
@@ -17,6 +20,16 @@ rubric:
 promotion:
   total_min: 0.75
   axis_min: 0.50
+
+# --- Judge determinism --------------------------------------------------------
+# LLM-as-judge is non-deterministic, so the gate scores N times and takes the
+# per-axis median. `temperature` is honored by anthropic/ollama; the default
+# claude_code provider (`claude -p`) has no temperature flag, so for it
+# median-of-N is the only determinism lever. This bounds variance and makes the
+# score auditable/re-checkable — not bit-exact (hosted models drift).
+judge:
+  runs: 3            # >= 1; 1 disables median (cheap iteration)
+  temperature: 0.0
 
 # --- Providers ----------------------------------------------------------------
 # Which provider to use per pipeline stage.
