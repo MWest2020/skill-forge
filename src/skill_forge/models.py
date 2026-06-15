@@ -373,6 +373,62 @@ class JudgeFinding(BaseModel):
         return v
 
 
+def _validate_axes(axes: dict[str, float], field: str) -> dict[str, float]:
+    if set(axes) != set(JUDGE_AXES):
+        raise ValueError(f"{field} keys must be exactly {JUDGE_AXES}, got {sorted(axes)}")
+    for axis, value in axes.items():
+        _check_unit(value, f"{field}.{axis}")
+    return axes
+
+
+class JudgeRun(BaseModel):
+    """One provider judge call: per-axis scores + findings + reproducibility tags.
+
+    No `total` — it is always derived client-side from the rubric weights, so a
+    model/weight drift can never desync the stored total from the axes.
+    """
+
+    model_config = _STRICT
+    axes: dict[str, float]
+    findings: list[JudgeFinding] = Field(default_factory=list)
+    model_id: str
+    prompt_sha256: str
+
+    @field_validator("axes")
+    @classmethod
+    def _axes_ok(cls, v: dict[str, float]) -> dict[str, float]:
+        return _validate_axes(v, "JudgeRun.axes")
+
+    @field_validator("prompt_sha256")
+    @classmethod
+    def _hash_ok(cls, v: str) -> str:
+        if not SHA256_RE.fullmatch(v):
+            raise ValueError("JudgeRun.prompt_sha256 must be 64 hex chars")
+        return v
+
+
+class JudgeProvenance(BaseModel):
+    """Reproducibility record for one `judge_skill` call (the N runs + median).
+
+    Persisted in the runs/ audit trail so a score is auditable and re-checkable
+    from pinned inputs — not bit-exact replayable (hosted models drift)."""
+
+    model_config = _STRICT
+    provider: str
+    model_id: str
+    rubric_version: str
+    prompt_sha256: str
+    temperature: float
+    runs: int = Field(ge=1)
+    raw_axes: list[dict[str, float]]
+    median_axes: dict[str, float]
+
+    @field_validator("median_axes")
+    @classmethod
+    def _median_ok(cls, v: dict[str, float]) -> dict[str, float]:
+        return _validate_axes(v, "JudgeProvenance.median_axes")
+
+
 class RunEvent(BaseModel):
     """One line in `runs/{run_id}.jsonl`."""
 
@@ -384,6 +440,7 @@ class RunEvent(BaseModel):
     scores: JudgeScore | None = None
     findings: list[JudgeFinding] = Field(default_factory=list)
     promoted: bool = False
+    judge_provenance: JudgeProvenance | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("run_id")

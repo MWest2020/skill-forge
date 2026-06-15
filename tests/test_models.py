@@ -9,14 +9,19 @@ from pydantic import ValidationError
 
 from skill_forge.models import (
     JUDGE_AXES,
+    JudgeProvenance,
+    JudgeRun,
     JudgeScore,
     Run,
+    RunEvent,
     RunSummary,
     Skill,
     Source,
     SourceRef,
     SourcesFile,
 )
+
+_HEX64 = "a" * 64
 
 
 def _skill(**overrides: object) -> Skill:
@@ -44,6 +49,59 @@ def test_skill_tags_deduped_and_sorted() -> None:
 def test_skill_tags_reject_non_slug() -> None:
     with pytest.raises(ValidationError):
         _skill(tags=["Security"])  # uppercase is not slug-shaped
+
+
+def _axes(v: float = 0.8) -> dict[str, float]:
+    return {axis: v for axis in JUDGE_AXES}
+
+
+def test_judge_run_valid() -> None:
+    run = JudgeRun(axes=_axes(), findings=[], model_id="anthropic:x", prompt_sha256=_HEX64)
+    assert run.axes["clarity"] == 0.8
+
+
+def test_judge_run_rejects_out_of_range_axis() -> None:
+    with pytest.raises(ValidationError):
+        JudgeRun(axes=_axes(1.5), model_id="x", prompt_sha256=_HEX64)
+
+
+def test_judge_run_rejects_unknown_axis_key() -> None:
+    with pytest.raises(ValidationError):
+        JudgeRun(axes={"bogus": 0.5}, model_id="x", prompt_sha256=_HEX64)
+
+
+def test_judge_run_rejects_bad_prompt_hash() -> None:
+    with pytest.raises(ValidationError):
+        JudgeRun(axes=_axes(), model_id="x", prompt_sha256="not-a-hash")
+
+
+def test_judge_provenance_valid_and_runs_floor() -> None:
+    prov = JudgeProvenance(
+        provider="anthropic", model_id="anthropic:x", rubric_version="1",
+        prompt_sha256=_HEX64, temperature=0.0, runs=3,
+        raw_axes=[_axes(0.7), _axes(0.8), _axes(0.9)], median_axes=_axes(0.8),
+    )
+    assert prov.runs == 3
+    with pytest.raises(ValidationError):
+        JudgeProvenance(
+            provider="anthropic", model_id="x", rubric_version="1",
+            prompt_sha256=_HEX64, temperature=0.0, runs=0,
+            raw_axes=[], median_axes=_axes(),
+        )
+
+
+def test_run_event_carries_judge_provenance() -> None:
+    prov = JudgeProvenance(
+        provider="claude_code", model_id="claude_code:claude", rubric_version="1",
+        prompt_sha256=_HEX64, temperature=0.0, runs=1,
+        raw_axes=[_axes()], median_axes=_axes(),
+    )
+    ev = RunEvent(
+        run_id="run-2026-06-15-001", event="judged",
+        timestamp=datetime(2026, 6, 15, tzinfo=UTC), skill_slug="demo",
+        judge_provenance=prov,
+    )
+    assert RunEvent.model_validate(ev.model_dump(mode="json")).judge_provenance == prov
 
 
 def _source() -> Source:
