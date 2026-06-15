@@ -21,9 +21,10 @@ independently shippable; 5–8 (MCP) build on them.
 - [x] **3. `ls --tag` + `tags` command.** Added the `--tag` filter and a `Tags`
   column to `ls`; added `forge tags` (live tag counts, `No tags on live skills.`
   when empty). Tests via `CliRunner`.
-- [ ] **4. `sync --tag`.** Filter `sync`/`--unsync` to a skillset; exit 1 on an
-  empty skillset. Test: tagged subset mounts; other tags untouched on
-  `--unsync --tag`; empty skillset exits 1.
+- [x] **4. `sync --tag`.** `sync --tag T` mounts only the T skillset and merges
+  into the manifest (other tags preserved); `--unsync --tag T` removes only T's
+  entries and rewrites the manifest; empty skillset → exit 1. Tests cover mount,
+  merge-preserving unsync, and the empty-skillset exit.
 
 ## MCP server
 

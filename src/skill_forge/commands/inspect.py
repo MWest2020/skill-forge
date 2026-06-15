@@ -28,6 +28,10 @@ def sync(
             help="Remove previously-synced skills instead of placing new ones.",
         ),
     ] = False,
+    tag: Annotated[
+        str | None,
+        typer.Option("--tag", help="Limit to the skillset carrying this tag."),
+    ] = None,
     root: RootOpt = None,
 ) -> None:
     """Sync promoted skills into a consumer tool's skills directory."""
@@ -36,13 +40,13 @@ def sync(
     base = _resolve_root(root)
     if unsync:
         try:
-            removed, expected = unsync_target(base, target=target)
+            removed, expected = unsync_target(base, target=target, tag=tag)
         except SyncError as exc:
             _die(str(exc), 1)
         typer.echo(f"Unsynced: {removed} of {expected} skill(s) removed for target {target!r}")
         return
     try:
-        manifest = sync_target(base, target=target, target_dir=target_dir, mode=mode)
+        manifest = sync_target(base, target=target, target_dir=target_dir, mode=mode, tag=tag)
     except SyncError as exc:
         typer.echo(str(exc), err=True)
         if target not in KNOWN_TARGETS:

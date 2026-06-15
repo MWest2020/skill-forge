@@ -13,6 +13,8 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict
 
+from skill_forge.storage.filesystem import live_skills_with_tag
+
 # Built-in target → default consumer dir relative to ~ (use Path.home() at call time).
 KNOWN_TARGETS: dict[str, str] = {
     "claude-code": ".claude/skills",
@@ -48,8 +50,15 @@ def sync_target(
     target: str,
     target_dir: Path | None = None,
     mode: str = "symlink",
+    tag: str | None = None,
 ) -> SyncManifest:
-    """Sync every promoted skill into `target_dir`. Returns the new manifest."""
+    """Sync promoted skills into `target_dir`. Returns the new manifest.
+
+    Without `tag`, syncs every promoted skill (replacing the manifest). With
+    `tag`, syncs only that skillset (live skills carrying the tag) and *merges*
+    into any existing manifest — entries for other tags' skills are preserved —
+    so a target can hold several skillsets. An empty skillset is an error.
+    """
     if target not in KNOWN_TARGETS:
         raise SyncError(
             f"unknown target {target!r}; pick one of {sorted(KNOWN_TARGETS)} "
@@ -63,16 +72,29 @@ def sync_target(
     if mode == "symlink" and os.name == "nt":
         mode = "copy"
 
-    promoted = _list_promoted_slugs(root)
+    if tag is None:
+        slugs = _list_promoted_slugs(root)
+    else:
+        slugs = live_skills_with_tag(root, tag)
+        if not slugs:
+            raise SyncError(f"no live skills tagged {tag!r}")
+
     resolved.mkdir(parents=True, exist_ok=True)
     entries: list[SyncedEntry] = []
-    for slug in promoted:
+    for slug in slugs:
         src = root / "skills" / slug / "SKILL.md"
         dst_dir = resolved / slug
         dst_dir.mkdir(parents=True, exist_ok=True)
         dst = dst_dir / "SKILL.md"
         _place(src, dst, mode=mode)
         entries.append(SyncedEntry(slug=slug, target_path=str(dst), mode=mode))
+
+    if tag is not None:
+        # Merge: keep entries for skills outside this skillset, replace the rest.
+        existing = _read_manifest(root, target)
+        if existing is not None:
+            synced = {e.slug for e in entries}
+            entries = [e for e in existing.entries if e.slug not in synced] + entries
 
     manifest = SyncManifest(
         target=target,
@@ -84,8 +106,12 @@ def sync_target(
     return manifest
 
 
-def unsync_target(root: Path, *, target: str) -> tuple[int, int]:
-    """Remove every entry from the previous sync manifest.
+def unsync_target(root: Path, *, target: str, tag: str | None = None) -> tuple[int, int]:
+    """Remove synced entries from the previous manifest.
+
+    Without `tag`, removes everything and deletes the manifest. With `tag`,
+    removes only that skillset's entries (live skills carrying the tag) and
+    rewrites the manifest with the rest — other skillsets stay mounted.
 
     Returns (removed, expected) — the latter lets callers tell users how
     many files were already gone vs how many we actually unlinked.
@@ -93,9 +119,18 @@ def unsync_target(root: Path, *, target: str) -> tuple[int, int]:
     manifest = _read_manifest(root, target)
     if manifest is None:
         return 0, 0
-    expected = len(manifest.entries)
+
+    if tag is None:
+        to_remove = manifest.entries
+        remaining: list[SyncedEntry] = []
+    else:
+        tagged = set(live_skills_with_tag(root, tag))
+        to_remove = [e for e in manifest.entries if e.slug in tagged]
+        remaining = [e for e in manifest.entries if e.slug not in tagged]
+
+    expected = len(to_remove)
     removed = 0
-    for entry in manifest.entries:
+    for entry in to_remove:
         path = Path(entry.target_path)
         try:
             if path.is_symlink() or path.is_file():
@@ -106,8 +141,11 @@ def unsync_target(root: Path, *, target: str) -> tuple[int, int]:
                 parent.rmdir()
         except OSError:
             continue
+
     manifest_path = root / "sync" / f"{target}.yml"
-    if manifest_path.exists():
+    if remaining:
+        _write_manifest(root, target, manifest.model_copy(update={"entries": remaining}))
+    elif manifest_path.exists():
         manifest_path.unlink()
     return removed, expected
 

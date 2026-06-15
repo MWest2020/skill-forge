@@ -136,6 +136,57 @@ def test_sync_refuses_system_dirs(tmp_path: Path) -> None:
             sync_target(tmp_path, target="claude-code", target_dir=path, mode="copy")
 
 
+# --- sync --tag (skillsets) --------------------------------------------------
+
+
+def _seed_tagged(tmp_path: Path, slug: str, tags: list[str]) -> None:
+    fs.write_skill(tmp_path, _skill(slug).model_copy(update={"tags": tags}), draft=False)
+
+
+def test_sync_tag_mounts_only_skillset(tmp_path: Path) -> None:
+    _seed_tagged(tmp_path, "sec", ["security"])
+    _seed_tagged(tmp_path, "web", ["web"])
+    target_dir = tmp_path / "out"
+    manifest = sync_target(
+        tmp_path, target="claude-code", target_dir=target_dir, mode="copy", tag="security"
+    )
+    assert {e.slug for e in manifest.entries} == {"sec"}
+    assert (target_dir / "sec" / "SKILL.md").is_file()
+    assert not (target_dir / "web").exists()
+
+
+def test_sync_tag_empty_skillset_raises(tmp_path: Path) -> None:
+    _seed_tagged(tmp_path, "sec", ["security"])
+    with pytest.raises(SyncError, match="no live skills tagged"):
+        sync_target(
+            tmp_path, target="claude-code", target_dir=tmp_path / "out", mode="copy", tag="nope"
+        )
+
+
+def test_unsync_tag_keeps_other_entries(tmp_path: Path) -> None:
+    _seed_tagged(tmp_path, "sec", ["security"])
+    _seed_tagged(tmp_path, "web", ["web"])
+    target_dir = tmp_path / "out"
+    sync_target(tmp_path, target="claude-code", target_dir=target_dir, mode="copy")  # both
+    removed, expected = unsync_target(tmp_path, target="claude-code", tag="security")
+    assert (removed, expected) == (1, 1)
+    assert not (target_dir / "sec").exists()
+    assert (target_dir / "web" / "SKILL.md").is_file()
+    manifest = _read_manifest(tmp_path, "claude-code")
+    assert manifest is not None
+    assert {e.slug for e in manifest.entries} == {"web"}
+
+
+def test_sync_cli_tag_empty_exits_1(tmp_path: Path) -> None:
+    _seed_tagged(tmp_path, "sec", ["security"])
+    result = runner.invoke(
+        app,
+        ["sync", "claude-code", "--tag", "nope", "--target-dir", str(tmp_path / "out")],
+    )
+    assert result.exit_code == 1
+    assert "no live skills tagged" in (result.stderr or result.output)
+
+
 def test_sync_refuses_home_parent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A typo like --target-dir / on macOS shouldn't smash /Users either."""
     fake_home = tmp_path / "fake-home" / "user"
