@@ -50,6 +50,21 @@ uv run forge promote claude-api
 uv run forge sync claude-code --mode symlink
 ```
 
+Group skills into **skillsets** with `tags`, then mount or serve a subset:
+
+```bash
+uv run forge tags                                 # tags on live skills, with counts
+uv run forge ls --tag security                    # just the security skillset
+uv run forge sync claude-code --tag security      # mount only that skillset
+
+# Serve the live library read-only over MCP (stdio) — for containerized agents
+# that pull a specific skillset instead of sharing a disk:
+uv run forge serve mcp                             # tools: list_skills, get_skill, get_skillset
+```
+
+A *skillset* is a query ("live skills tagged T"), not a stored bundle. The MCP
+surface is read-only: it exposes the live library, never intake or curation.
+
 The refinement loop — improve a skill across scored iterations:
 
 ```bash

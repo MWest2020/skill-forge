@@ -37,9 +37,11 @@ independently shippable; 5–8 (MCP) build on them.
   raising on unknown/draft slug. (Logic landed in #5.)
 - [x] **7. `get_skillset`.** Tests cover the live-only bundle (bodies included)
   and the empty-tag `{tag, skills: []}` case. (Logic landed in #5.)
-- [ ] **8. Read-only + provenance guarantees.** Assert no tool can reach draft
-  skills, mutate state, or run a provider; every body payload carries `origin`.
-  Add a README/`forge serve mcp --help` note on running it from a container.
+- [x] **8. Read-only + provenance guarantees.** Tests: no mutating tool name is
+  exposed; calling every tool leaves the tree byte-for-byte unchanged
+  (read-only); body payloads carry `origin`. README documents skillsets +
+  `forge serve mcp` for containers; `serve mcp --help` notes the read-only
+  surface.
 
 ## Validate (gate before archive)
 

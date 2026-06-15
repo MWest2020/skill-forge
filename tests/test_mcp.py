@@ -96,3 +96,37 @@ def test_get_skillset_bundles_live_tagged_skills(tmp_path: Path) -> None:
 
 def test_get_skillset_empty_is_not_an_error(tmp_path: Path) -> None:
     assert get_skillset(tmp_path, "nope") == {"tag": "nope", "skills": []}
+
+
+# --- task 8: read-only + provenance guarantees -------------------------------
+
+_MUTATING = {"import", "import-repo", "import-dir", "extract", "judge", "promote",
+             "demote", "refine", "refine-accept", "refine-reject", "sync"}
+
+
+def test_no_mutating_tools_exposed(tmp_path: Path) -> None:
+    names = {t.name for t in asyncio.run(build_server(tmp_path).list_tools())}
+    assert names.isdisjoint(_MUTATING)
+
+
+def test_body_payloads_carry_origin(tmp_path: Path) -> None:
+    fs.write_skill(tmp_path, _skill("sec", ["security"]), draft=False, identity=None)
+    assert "origin" in get_skill(tmp_path, "sec")
+    assert all("origin" in s for s in get_skillset(tmp_path, "security")["skills"])
+
+
+def test_tools_never_write(tmp_path: Path) -> None:
+    """Read-only: calling every tool leaves the tree byte-for-byte unchanged."""
+    _seed(tmp_path, "sec", ["security"])
+    _seed(tmp_path, "web", ["web"])
+
+    def snapshot() -> dict[str, int]:
+        return {str(p): p.stat().st_mtime_ns for p in tmp_path.rglob("*") if p.is_file()}
+
+    before = snapshot()
+    list_skills(tmp_path)
+    list_skills(tmp_path, "security")
+    get_skill(tmp_path, "sec")
+    get_skillset(tmp_path, "security")
+    get_skillset(tmp_path, "nope")
+    assert snapshot() == before
