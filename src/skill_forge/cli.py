@@ -145,6 +145,7 @@ def run(
         int, typer.Option("--max-candidates", help="Cap on candidates to extract.")
     ] = 3,
     root: RootOpt = None,
+    home: HomeOpt = None,
 ) -> None:
     """Discover top-N candidates for a topic, extract each, judge each."""
     from skill_forge.discovery.github import GitHubSearchError, search_repos
@@ -164,7 +165,7 @@ def run(
     if not allowed:
         _die(f"No license-clean candidates found for {topic!r}.", 1)
 
-    identity = _load_identity(home=None)
+    identity = _load_identity(home)
     for cand in allowed:
         typer.echo(f"\n--- {cand.full_name} ({cand.spdx_license}) ---")
         try:
@@ -195,12 +196,13 @@ def extract(
         typer.Option("--max-pages", help="Cap on pages followed during --all."),
     ] = DEFAULT_MAX_PAGES,
     root: RootOpt = None,
+    home: HomeOpt = None,
 ) -> None:
     """Fetch a source and distill it into a draft SKILL.md."""
     base = _resolve_root(root)
     cfg = load_config(base)
     provider = _provider_or_exit(cfg, "extract")
-    identity = _load_identity(home=None)
+    identity = _load_identity(home)
     _run_extract(
         source_url,
         root=base,
@@ -317,10 +319,11 @@ def import_command(
     path: Path,
     origin_tag: OriginTagOpt = None,
     root: RootOpt = None,
+    home: HomeOpt = None,
 ) -> None:
     """Import an existing SKILL.md from disk into skills/_draft/."""
     base = _resolve_root(root)
-    identity = _load_identity(home=None)
+    identity = _load_identity(home)
     try:
         skill, sources = import_file(base, path, identity=identity, origin_tag=origin_tag)
     except SkillImportError as exc:
@@ -341,12 +344,13 @@ def import_repo_command(
         int, typer.Option("--max-skills", help="Refuse repos with more than this many SKILL.md")
     ] = 50,
     root: RootOpt = None,
+    home: HomeOpt = None,
 ) -> None:
     """Walk a GitHub repo and import every SKILL.md found inside it."""
     from skill_forge.import_skill import RepoImportError, import_github_repo
 
     base = _resolve_root(root)
-    identity = _load_identity(home=None)
+    identity = _load_identity(home)
     try:
         result = import_github_repo(
             base,
@@ -370,10 +374,11 @@ def import_dir_command(
     src_dir: Path,
     origin_tag: OriginTagOpt = None,
     root: RootOpt = None,
+    home: HomeOpt = None,
 ) -> None:
     """Bulk-import every subdirectory containing a SKILL.md."""
     base = _resolve_root(root)
-    identity = _load_identity(home=None)
+    identity = _load_identity(home)
     try:
         results = import_directory(base, src_dir, identity=identity, origin_tag=origin_tag)
     except SkillImportErrorGroup as exc:
@@ -392,7 +397,7 @@ def import_dir_command(
 
 
 @app.command()
-def judge(slug: str, root: RootOpt = None) -> None:
+def judge(slug: str, root: RootOpt = None, home: HomeOpt = None) -> None:
     """Score a skill against the configured rubric."""
     from skill_forge.evaluation.judge import judge_skill
 
@@ -402,7 +407,7 @@ def judge(slug: str, root: RootOpt = None) -> None:
     promotion = cfg["promotion"]
     provider = _provider_or_exit(cfg, "judge")
 
-    identity = _load_identity(home=None)
+    identity = _load_identity(home)
     try:
         score, findings = judge_skill(
             base, slug, provider=provider, weights=weights, identity=identity
@@ -445,6 +450,7 @@ def promote(
     slug: str,
     force: Annotated[bool, typer.Option("--force", help="Bypass the threshold check.")] = False,
     root: RootOpt = None,
+    home: HomeOpt = None,
 ) -> None:
     """Move a draft to live (subject to the configured judge threshold)."""
     from skill_forge.promotion.promoter import (
@@ -456,7 +462,7 @@ def promote(
 
     base = _resolve_root(root)
     cfg = load_config(base)
-    identity = _load_identity(home=None)
+    identity = _load_identity(home)
     try:
         path = _promote(base, slug, promotion=cfg["promotion"], force=force, identity=identity)
     except NotJudgedError as exc:
@@ -472,6 +478,7 @@ def demote(
     slug: str,
     reason: Annotated[str, typer.Option("--reason", "-r", help="Why this skill is being demoted.")],
     root: RootOpt = None,
+    home: HomeOpt = None,
 ) -> None:
     """Move a live skill back to draft, with a reason recorded in the audit log."""
     from skill_forge.promotion.promoter import (
@@ -481,7 +488,7 @@ def demote(
     from skill_forge.promotion.promoter import demote as _demote
 
     base = _resolve_root(root)
-    identity = _load_identity(home=None)
+    identity = _load_identity(home)
     try:
         path = _demote(base, slug, reason=reason, identity=identity)
     except (NotLiveError, DemoteCollisionError) as exc:
@@ -508,6 +515,7 @@ def refine(
         typer.Option("--prompt", help="User-supplied steer for the refinement."),
     ] = None,
     root: RootOpt = None,
+    home: HomeOpt = None,
 ) -> None:
     """Generate a new iteration of a skill from its latest judge findings."""
     from skill_forge.extraction.fetcher import fetch
@@ -532,7 +540,7 @@ def refine(
         except (FileNotFoundError, OSError, FetchError) as exc:
             _die(f"--with-source fetch failed: {exc}", 1)
 
-    identity = _load_identity(home=None)
+    identity = _load_identity(home)
     try:
         new_version = refine_skill(
             base,
@@ -562,12 +570,13 @@ def refine_accept(
     slug: str,
     iteration: Annotated[int, typer.Option("--iteration", help="Iteration version to accept.")],
     root: RootOpt = None,
+    home: HomeOpt = None,
 ) -> None:
     """Promote a pending iteration to be the current SKILL.md."""
     from skill_forge.refinement import RefinementError, accept_iteration
 
     base = _resolve_root(root)
-    identity = _load_identity(home=None)
+    identity = _load_identity(home)
     try:
         path = accept_iteration(base, slug, version=iteration, identity=identity)
     except (RefinementError, FileNotFoundError) as exc:

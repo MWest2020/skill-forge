@@ -49,6 +49,40 @@ def test_identity_show_second_call_omits_banner(tmp_path: Path) -> None:
     assert "Instance ID: forge-" in result.output
 
 
+# --- --home threads through main commands (maintainability #3) ----------------
+
+
+def test_import_honors_home_override(tmp_path: Path) -> None:
+    """A main command (not just `identity`) must sign with the identity at
+    --home, proving the override is threaded through rather than hardcoded."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    custom_home = tmp_path / "custom-id"
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "SKILL.md").write_text(
+        "---\n"
+        "name: home-probe\n"
+        "description: Use when X.\n"
+        "version: 1\n"
+        "created: '2026-05-24'\n"
+        "sources:\n"
+        "- id: src-abc123\n"
+        "---\n"
+        "# Body\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["import", str(src / "SKILL.md"), "--home", str(custom_home), "--root", str(root)],
+    )
+
+    assert result.exit_code == 0, result.output
+    # The keypair landed in the overridden home, not the default location.
+    assert custom_home.is_dir() and any(custom_home.iterdir())
+
+
 # --- forge identity backfill --------------------------------------------------
 
 
