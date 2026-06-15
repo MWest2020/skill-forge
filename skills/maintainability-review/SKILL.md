@@ -1,0 +1,80 @@
+---
+created: '2026-06-15'
+description: "Code review focused exclusively on maintainability and refactorability\
+  \ \u2014 the axis that correctness review and security review miss. Finds what makes\
+  \ future change expensive: unclear names, long functions, hidden coupling, mixed\
+  \ responsibilities, duplicated logic, untestable code, and change-amplification\
+  \ (one logical change forced across many sites). Every finding is one line: location,\
+  \ the smell, the behavior-preserving refactor move. Use when the user says \"review\
+  \ for maintainability\", \"is this maintainable\", \"refactor review\", \"what should\
+  \ I refactor\", \"find code smells\", \"how hard is this to change\", or invokes\
+  \ /maintainability-review. Behavior-preserving only \u2014 it proposes refactors,\
+  \ not bug fixes or feature changes.\n"
+judge_score: null
+name: maintainability-review
+origin: forge-996cce1c:maintainability-review:1
+signature: 0hx1EALkTWyHRc2wzszt3MWD7QAhZagbM+mWS6PxDqIZWnFcZXaDauZtBNAgs9YnI325rWwgA+KwSIdpSG7cCA==
+sources:
+- id: src-a1b2c3
+version: 1
+visibility: private
+---
+
+# Maintainability Review
+
+Review code for what makes the NEXT change expensive. Not "is it correct" (that
+is a normal review) and not "is it over-built" (that is over-engineering review)
+— "when someone edits this in six months, what taxes them?" One line per
+finding: location, the smell, the behavior-preserving move that removes it.
+
+## Format
+
+`path:L<line>: <tag> <smell>. <refactor move>.` Rank findings by blast radius —
+the change-amplification smells first, cosmetic ones last.
+
+Tags:
+
+- `name:` identifier that misleads or hides intent. Give the clearer name.
+- `extract:` function/block doing several things or too long to hold in the head. Name the unit to extract.
+- `couple:` unit reaches across a boundary (global, sibling internals, deep attribute chains). Name the seam to pass instead.
+- `cohesion:` one unit carrying unrelated responsibilities. Name the split.
+- `dup:` same logic in N places — changing behavior means editing all N. Name the single source of truth.
+- `seam:` no injection point, so it can't be tested without its real collaborators. Name the seam to introduce.
+- `amplify:` one logical change forces edits across many sites (parallel switch statements, shotgun edits). Name what to centralize.
+
+## What to weigh
+
+Change-amplification (one decision, many edit sites) over local ugliness. A
+clear 30-line function beats a clever 8-line one. Prefer moves that shrink the
+blast radius of the *likely next change*, not hypothetical ones — speculative
+flexibility is over-engineering, not maintainability, and goes to a different
+pass.
+
+## Examples
+
+❌ "This module is a bit hard to follow and could maybe be cleaned up when you
+get a chance."
+
+✅ `parser.py:L40-95: extract: 55-line parse() mixes tokenizing, validating, and building. Extract tokenize() and validate(); parse() becomes 3 calls.`
+
+✅ `client.py:L12: couple: reaches into config._cache directly. Pass the resolved value in; drop the reach-through.`
+
+✅ `sync.py:L88,142,203: amplify: target→path mapping duplicated at 3 call sites. One change means 3 edits. Centralize in resolve_target().`
+
+✅ `report.py:L30: seam: builds its own clock via datetime.now() inline. Inject `now` so the formatter is testable without freezing time.`
+
+✅ `models.py:L17: name: `data2` — the post-validation record. Rename to `validated_record`.`
+
+## Boundaries
+
+Behavior-preserving refactors only. Correctness bugs → normal code review.
+Security holes → security review. Over-engineering / "delete this" → ponytail or
+simplify. Lists findings; applies nothing unless asked. One-shot. "stop
+maintainability-review" or "normal mode" to revert. Nothing to flag:
+`Maintainable. Ship.`
+
+## Source
+
+Paraphrased from the established refactoring canon — Martin Fowler's smell/
+refactoring catalog (https://refactoring.com/catalog/) and the connascence
+model of coupling (https://connascence.io/). Both inform the tags above.
