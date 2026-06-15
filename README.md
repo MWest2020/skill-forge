@@ -6,7 +6,7 @@
 
 ## What it is
 
-A personal knowledge pipeline. Examenstof, DevOps patterns, work processes,
+A personal knowledge pipeline. Curiosities, DevOps patterns, work processes,
 component docs — anything currently spread across docs, blog posts, and own
 notes — gets one structured form that Claude Code and other agents can mount.
 
