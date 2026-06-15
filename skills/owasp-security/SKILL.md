@@ -9,6 +9,8 @@ origin: forge-996cce1c:owasp-security:1
 signature: GjnGWaB3n5dmTW5YzuJi++cG88r4gdLrDIA7L75pCwTWvGhx24LpVT+jUPReBtpRxSSUydr8UEosRZpUnviSBA==
 sources:
 - id: src-ec6bbf
+tags:
+- security
 version: 1
 visibility: private
 ---
