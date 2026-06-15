@@ -12,6 +12,9 @@ origin: forge-996cce1c:ponytail-review:1
 signature: Bh/rzGs3sjb9vkgr3KOMCjVoM8PirIfBY4uRRJVpRv0dvqWRSL9F/ks+rhnry8m9UymW9o2QLXV/KLgqKQdWCA==
 sources:
 - id: src-f77338
+tags:
+- minimalism
+- review
 version: 1
 visibility: private
 ---

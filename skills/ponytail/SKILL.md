@@ -16,6 +16,8 @@ origin: forge-996cce1c:ponytail:1
 signature: PzVITz6WAzcN8L7XQiRxZn3hv9iBm+FKhln5oQ2dt0O5X1lq9UdoXz5RFsDKKFC3YXwXZbZFYxkCnhXqhNcWDg==
 sources:
 - id: src-1b9eaa
+tags:
+- minimalism
 version: 1
 visibility: private
 ---

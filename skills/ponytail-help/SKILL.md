@@ -9,6 +9,8 @@ origin: forge-996cce1c:ponytail-help:1
 signature: 50vGCqwnwpCpfJ25VUGfu2ujUo9SaU3rBtd7gbkOkoj1LyCSRXfTb/VZ8T/JYsFNhyQJ2Vd7cr08o2yOR05kBQ==
 sources:
 - id: src-61ec00
+tags:
+- minimalism
 version: 1
 visibility: private
 ---

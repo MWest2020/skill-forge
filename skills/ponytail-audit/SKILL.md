@@ -11,6 +11,8 @@ origin: forge-996cce1c:ponytail-audit:1
 signature: Si5JLiyPU4hMTDTIPEJYJ+Ex+itZpo0fACHM33jmxAPyWa5EPtpEvj6wslxjV/iToaWthJIxs6wn4GMcxZFQAg==
 sources:
 - id: src-c0f03b
+tags:
+- minimalism
 version: 1
 visibility: private
 ---

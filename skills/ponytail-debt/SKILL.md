@@ -11,6 +11,8 @@ origin: forge-996cce1c:ponytail-debt:1
 signature: tyL9OOOpz+dv16rL83m01p3QdElYPspZxQKPeplsj+Oz3dja5L9OjbD3r/nlwuJgD69LUvrcL0e2A37KgTSJDQ==
 sources:
 - id: src-83dc09
+tags:
+- minimalism
 version: 1
 visibility: private
 ---
