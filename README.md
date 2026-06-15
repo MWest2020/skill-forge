@@ -40,8 +40,11 @@ uv run forge import-repo https://github.com/anthropics/skills --origin-tag exter
 uv run forge ls
 uv run forge show claude-api
 
-# Score a draft against the rubric (LLM judge)
+# Score a draft against the rubric (LLM judge). Scored N times (default 3) and
+# reduced by per-axis median to tame LLM non-determinism; full provenance
+# (model, rubric version, prompt hash, every raw run) lands in the audit trail.
 uv run forge judge claude-api
+uv run forge judge claude-api --explain   # show the recorded provenance for the latest score
 
 # Promote drafts that clear the threshold (total ≥ 0.75, every axis ≥ 0.50)
 uv run forge promote claude-api
@@ -148,6 +151,7 @@ authoritative plan lives in [`STRATEGY.md`](STRATEGY.md).
 | 10 | add-import-repo | `forge import-repo` — bulk-import SKILL.md from a GitHub repo |
 | 11 | add-release | `forge release` — signed, version-pinned skill bundles |
 | 12 | add-skillsets-and-mcp | `tags` + skillsets, `ls --tag` / `forge tags` / `sync --tag`, read-only `forge serve mcp` (stdio) |
+| 13 | make-judge-reproducible | median-of-N judging + full judge provenance in the audit trail, `forge judge --explain` |
 
 **Descoped** by the `strip-to-curation-core` change (June 2026): #7
 `add-mcp-server-mode` (`serve`), #8 `add-federation` (`peer`), the
