@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 import typer
 from rich.console import Console
@@ -76,6 +76,14 @@ def _load_identity(home: Path | None) -> Identity:
     return get_or_create(_resolve_home(home))
 
 
+def _die(msg: str, code: int) -> NoReturn:
+    """Echo an error to stderr and exit with `code`. The one place the CLI's
+    error-to-exit-code mapping lives; each call site keeps its `except` type
+    and code visible, only the echo+raise mechanics are shared."""
+    typer.echo(msg, err=True)
+    raise typer.Exit(code=code)
+
+
 @app.command()
 def discover(
     topic: str,
@@ -90,8 +98,7 @@ def discover(
     try:
         candidates = search_repos(topic, limit=limit)
     except GitHubSearchError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
 
     blocked_log = base / "discovery_blocked.log"
     table = Table(title=f"candidates for {topic!r}")
@@ -149,15 +156,13 @@ def run(
     try:
         candidates = search_repos(topic, limit=max_candidates * 3)
     except GitHubSearchError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
 
     allowed = [c for c in candidates if classify_spdx(c.spdx_license) != "forbidden"][
         :max_candidates
     ]
     if not allowed:
-        typer.echo(f"No license-clean candidates found for {topic!r}.", err=True)
-        raise typer.Exit(code=1)
+        _die(f"No license-clean candidates found for {topic!r}.", 1)
 
     identity = _load_identity(home=None)
     for cand in allowed:
@@ -247,17 +252,15 @@ def _provider_or_exit(cfg: dict[str, object], role: str) -> LLMProvider:
     assert isinstance(providers, dict)
     name = str(providers[role])
     if name == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
-        typer.echo(
+        _die(
             f"ANTHROPIC_API_KEY not set; switch `providers.{role}` to 'claude_code' "
             "in config/default.yml or export the key.",
-            err=True,
+            2,
         )
-        raise typer.Exit(code=2)
     try:
         return _build_provider(name, cfg)
     except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from exc
+        _die(str(exc), 2)
 
 
 def _run_extract(
@@ -273,17 +276,14 @@ def _run_extract(
     try:
         content = fetch(source_url, follow_next=follow_next, max_pages=max_pages)
     except FetchError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     except (FileNotFoundError, PermissionError) as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
 
     try:
         skill, sources = distiller.distill(content, provider=provider)
     except LLMProviderError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=3) from exc
+        _die(str(exc), 3)
 
     slug = free_slug(root, skill.name)
     if slug != skill.name:
@@ -324,8 +324,7 @@ def import_command(
     try:
         skill, sources = import_file(base, path, identity=identity, origin_tag=origin_tag)
     except SkillImportError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     typer.echo(f"Imported: {skill.name}")
     typer.echo(f"  Draft path: skills/_draft/{skill.name}/SKILL.md")
     typer.echo(f"  Sources:    sources/{skill.name}.yml ({sources[0].url})")
@@ -358,8 +357,7 @@ def import_repo_command(
             max_skills=max_skills,
         )
     except RepoImportError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     for skill in result.imported:
         typer.echo(f"  imported: {skill.name}")
     for path, reason in result.skipped:
@@ -381,15 +379,13 @@ def import_dir_command(
     except SkillImportErrorGroup as exc:
         for failure in exc.failures:
             typer.echo(f"failed: {failure}", err=True)
-        typer.echo(
+        _die(
             f"\n{len(exc.failures)} import(s) failed. "
             "Any skills that parsed cleanly still landed in skills/_draft/.",
-            err=True,
+            1,
         )
-        raise typer.Exit(code=1) from exc
     except SkillImportError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     for skill, _ in results:
         typer.echo(f"Imported: {skill.name}")
     typer.echo(f"\n{len(results)} skill(s) imported.")
@@ -412,11 +408,9 @@ def judge(slug: str, root: RootOpt = None) -> None:
             base, slug, provider=provider, weights=weights, identity=identity
         )
     except FileNotFoundError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     except LLMProviderError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=3) from exc
+        _die(str(exc), 3)
 
     _print_judge_result(slug, score, findings, promotion)
 
@@ -466,11 +460,9 @@ def promote(
     try:
         path = _promote(base, slug, promotion=cfg["promotion"], force=force, identity=identity)
     except NotJudgedError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from exc
+        _die(str(exc), 2)
     except (BelowThresholdError, AlreadyPromotedError, FileNotFoundError) as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     typer.echo(f"Promoted: {slug}")
     typer.echo(f"  Live path: {path.relative_to(base)}")
 
@@ -493,11 +485,9 @@ def demote(
     try:
         path = _demote(base, slug, reason=reason, identity=identity)
     except (NotLiveError, DemoteCollisionError) as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     typer.echo(f"Demoted: {slug}")
     typer.echo(f"  Draft path: {path.relative_to(base)}")
     typer.echo(f"  Reason:     {reason}")
@@ -540,8 +530,7 @@ def refine(
                 p.body.decode("utf-8", errors="replace") for p in content.pages
             )
         except (FileNotFoundError, OSError, FetchError) as exc:
-            typer.echo(f"--with-source fetch failed: {exc}", err=True)
-            raise typer.Exit(code=1) from exc
+            _die(f"--with-source fetch failed: {exc}", 1)
 
     identity = _load_identity(home=None)
     try:
@@ -554,17 +543,13 @@ def refine(
             extra_source=extra_text,
         )
     except NoJudgmentToRefineError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from exc
+        _die(str(exc), 2)
     except PendingIterationExistsError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from exc
+        _die(str(exc), 2)
     except (RefinementError, FileNotFoundError) as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     except LLMProviderError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=3) from exc
+        _die(str(exc), 3)
 
     typer.echo(f"Refined: {slug} → v{new_version} (pending)")
     typer.echo(f"  Review with: forge diff {slug}")
@@ -586,8 +571,7 @@ def refine_accept(
     try:
         path = accept_iteration(base, slug, version=iteration, identity=identity)
     except (RefinementError, FileNotFoundError) as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     typer.echo(f"Accepted: {slug} → v{iteration} is now current")
     typer.echo(f"  Path: {path.relative_to(base)}")
 
@@ -606,11 +590,9 @@ def refine_reject(
     try:
         reject_iteration(base, slug, version=iteration, reason=reason)
     except (RefinementError, FileNotFoundError) as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
     typer.echo(f"Rejected: {slug} v{iteration}")
     typer.echo(f"  Reason: {reason}")
 
@@ -637,8 +619,7 @@ def diff(
     try:
         lineage = storage.read_lineage(base, slug, draft=draft)
     except FileNotFoundError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
 
     # Default --to to the highest version on disk (covers pending iterations),
     # not just current_version. Default --from to to_v - 1.
@@ -646,18 +627,13 @@ def diff(
     to_v = to_version if to_version is not None else highest
     from_v = from_version if from_version is not None else to_v - 1
     if from_v < 1 or to_v < 1 or from_v == to_v:
-        typer.echo(
-            "no prior iteration to diff against (only one version exists)",
-            err=True,
-        )
-        raise typer.Exit(code=1)
+        _die("no prior iteration to diff against (only one version exists)", 1)
 
     try:
         from_path = next(storage.iterations_dir(base, slug, draft=draft).glob(f"v{from_v}-*.md"))
         to_path = next(storage.iterations_dir(base, slug, draft=draft).glob(f"v{to_v}-*.md"))
-    except (StopIteration, FileNotFoundError) as exc:
-        typer.echo(f"iteration v{from_v} or v{to_v} not found", err=True)
-        raise typer.Exit(code=1) from exc
+    except (StopIteration, FileNotFoundError):
+        _die(f"iteration v{from_v} or v{to_v} not found", 1)
 
     if _shutil.which("git"):
         # Only force color when stdout is a TTY — otherwise piped output gets
@@ -702,8 +678,7 @@ def sync(
         try:
             removed, expected = unsync_target(base, target=target)
         except SyncError as exc:
-            typer.echo(str(exc), err=True)
-            raise typer.Exit(code=1) from exc
+            _die(str(exc), 1)
         typer.echo(f"Unsynced: {removed} of {expected} skill(s) removed for target {target!r}")
         return
     try:
@@ -744,8 +719,7 @@ def show(slug: str, root: RootOpt = None) -> None:
     try:
         storage.read_skill(base, slug)
     except FileNotFoundError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
+        _die(str(exc), 1)
 
     live = base / "skills" / slug / "SKILL.md"
     draft = base / "skills" / "_draft" / slug / "SKILL.md"
@@ -779,8 +753,7 @@ def identity_show(home: HomeOpt = None) -> None:
     try:
         identity = get_or_create(base)
     except OSError as exc:
-        typer.echo(f"cannot read or create identity at {base}: {exc}", err=True)
-        raise typer.Exit(code=1) from exc
+        _die(f"cannot read or create identity at {base}: {exc}", 1)
 
     if just_generated:
         typer.echo("Generated new identity. Back up the private key now.")
