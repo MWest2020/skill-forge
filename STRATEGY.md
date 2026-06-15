@@ -1,5 +1,22 @@
 # skill-forge — strategy update (May 2026)
 
+> **Update — June 2026 (read this first).** The **curation-first pivot** below
+> held and is the shipped reality: import → judge → promote → refine, with
+> lineage, provenance, and Ed25519 signatures. What did **not** survive is the
+> **distribution endgame**. The whole sharing layer — federation (change #8),
+> subscriptions, the broad MCP-over-HTTP server (change #7), and signed release
+> bundles — was built in May 2026 and then **deliberately removed** in
+> `strip-to-curation-core`: this is one person's curated library, not a network,
+> and that layer was the part most likely to be superseded by first-party skill
+> tooling. MCP later returned in `add-skillsets-and-mcp`, but **narrow**:
+> read-only, stdio-only, three tools, scoped to a *skillset* (a `tags` query) so
+> a containerized agent can pull a vetted subset — explicitly **not** the
+> federation transport. So in the sections below, **"MCP server mode (change
+> #7)", "Federation (change #8)", landscape point 3, and the federation-related
+> non-goals/risks/deferred-decisions are historical** — read them as the
+> thinking at the time, superseded by the two changes named above. The pivot,
+> positioning, "what stays", and curation non-goals remain accurate.
+
 ## Why this document exists
 
 `project.md` describes skill-forge as an extraction pipeline (sources → SKILL.md → judge → promote). After surveying the ecosystem (ClawHub, Skills.sh, SkillsDirectory, agentskills/agentskills, tech-leads-club/agent-skills, microsoft/skills, SkillFlow), this framing is too close to what already exists. This document records a deliberate scope pivot and the resulting roadmap change.
@@ -86,6 +103,10 @@ Out of scope for first pass: deep integration (running as a Claude Code plugin, 
 
 ### MCP server mode (change #7)
 
+> **Superseded (June 2026).** Built then stripped; rebuilt narrow in
+> `add-skillsets-and-mcp` — read-only, **stdio only** (no HTTP/token), three
+> tools, no registry publishing. The HTTP/auth/registry surface below was cut.
+
 Expose the skill library as an MCP server so any MCP-aware client (Claude Desktop, Claude Code, any agent) can read skills on demand instead of via filesystem sync.
 
 - Transport: stdio (local) and Streamable HTTP (remote).
@@ -95,6 +116,11 @@ Expose the skill library as an MCP server so any MCP-aware client (Claude Deskto
 - Submission to the official MCP Registry (`io.github.MWest2020/skill-forge`) under `add-mcp-registry-publishing` (a sub-change inside this one or its own).
 
 ### Federation (change #8)
+
+> **Descoped (June 2026).** Built in May 2026, removed in
+> `strip-to-curation-core`. skill-forge is a single-person curated library, not
+> a federation; do not reintroduce without a fresh proposal. The rest of this
+> section is historical.
 
 Peer instances exchange opt-in skills via signed manifests. Mastodon-style, not blockchain.
 

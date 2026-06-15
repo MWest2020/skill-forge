@@ -28,8 +28,8 @@ third option (`providers.*: ollama`).
 
 ## Quickstart
 
-The full curation loop is live (changes #1–#11). Skills enter as drafts, get
-scored, and graduate to live when they clear the threshold.
+The full curation loop is live. Skills enter as drafts, get scored, and
+graduate to live when they clear the threshold.
 
 ```bash
 # Bring skills in. import-repo walks a GitHub repo and normalizes every
