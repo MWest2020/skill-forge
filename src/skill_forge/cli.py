@@ -145,15 +145,7 @@ def run(
 
     base = _resolve_root(root)
     cfg = load_config(base)
-    provider_name = cfg["providers"]["extract"]
-    if provider_name == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
-        typer.echo("ANTHROPIC_API_KEY not set.", err=True)
-        raise typer.Exit(code=2)
-    try:
-        provider = _build_provider(provider_name, cfg)
-    except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from exc
+    provider = _provider_or_exit(cfg, "extract")
     try:
         candidates = search_repos(topic, limit=max_candidates * 3)
     except GitHubSearchError as exc:
@@ -202,19 +194,7 @@ def extract(
     """Fetch a source and distill it into a draft SKILL.md."""
     base = _resolve_root(root)
     cfg = load_config(base)
-    provider_name = cfg["providers"]["extract"]
-    if provider_name == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
-        typer.echo(
-            "ANTHROPIC_API_KEY not set. Add it to .env or export it, "
-            "or switch `providers.extract` to 'claude_code' in config/default.yml.",
-            err=True,
-        )
-        raise typer.Exit(code=2)
-    try:
-        provider = _build_provider(provider_name, cfg)
-    except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from exc
+    provider = _provider_or_exit(cfg, "extract")
     identity = _load_identity(home=None)
     _run_extract(
         source_url,
@@ -256,6 +236,28 @@ def _build_provider(name: str, cfg: dict[str, object]) -> LLMProvider:
     raise ValueError(
         f"unknown provider: {name!r} (expected 'anthropic', 'claude_code', or 'ollama')"
     )
+
+
+def _provider_or_exit(cfg: dict[str, object], role: str) -> LLMProvider:
+    """Resolve the configured provider for `role` ("extract" or "judge"), or
+    exit(2) with a helpful message. Centralizes the preamble every LLM-backed
+    command shared: read providers.<role>, guard the anthropic API key, build
+    the provider, and map an unknown name to a clean exit."""
+    providers = cfg["providers"]
+    assert isinstance(providers, dict)
+    name = str(providers[role])
+    if name == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
+        typer.echo(
+            f"ANTHROPIC_API_KEY not set; switch `providers.{role}` to 'claude_code' "
+            "in config/default.yml or export the key.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    try:
+        return _build_provider(name, cfg)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
 
 
 def _run_extract(
@@ -402,20 +404,7 @@ def judge(slug: str, root: RootOpt = None) -> None:
     cfg = load_config(base)
     weights: dict[str, float] = cfg["rubric"]["weights"]
     promotion = cfg["promotion"]
-    provider_name = cfg["providers"]["judge"]
-
-    if provider_name == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
-        typer.echo(
-            "ANTHROPIC_API_KEY not set; switch `providers.judge` to 'claude_code' "
-            "in config/default.yml or export the key.",
-            err=True,
-        )
-        raise typer.Exit(code=2)
-    try:
-        provider = _build_provider(provider_name, cfg)
-    except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from exc
+    provider = _provider_or_exit(cfg, "judge")
 
     identity = _load_identity(home=None)
     try:
@@ -541,15 +530,7 @@ def refine(
 
     base = _resolve_root(root)
     cfg = load_config(base)
-    provider_name = cfg["providers"]["judge"]
-    if provider_name == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
-        typer.echo("ANTHROPIC_API_KEY not set.", err=True)
-        raise typer.Exit(code=2)
-    try:
-        provider = _build_provider(provider_name, cfg)
-    except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from exc
+    provider = _provider_or_exit(cfg, "judge")
 
     extra_text: str | None = None
     if with_source:

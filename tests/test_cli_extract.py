@@ -8,7 +8,7 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from skill_forge.cli import _run_extract, app
+from skill_forge.cli import _provider_or_exit, _run_extract, app
 from skill_forge.providers.base import DistilledDraft, LLMProviderError
 from skill_forge.storage import filesystem as fs
 from skill_forge.storage.filesystem import free_slug
@@ -160,6 +160,36 @@ def test_extract_cli_unknown_provider_exits_2(
     result = runner.invoke(app, ["extract", "file:///nonexistent", "--root", str(tmp_path)])
     assert result.exit_code == 2
     assert "unknown provider" in (result.stderr or result.output)
+
+
+def test_provider_or_exit_returns_claude_code_without_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from skill_forge.providers.claude_code import ClaudeCodeProvider
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    cfg = {"providers": {"judge": "claude_code"}, "claude_code": {}}
+    assert isinstance(_provider_or_exit(cfg, "judge"), ClaudeCodeProvider)
+
+
+def test_provider_or_exit_anthropic_without_key_exits_2(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    cfg = {"providers": {"extract": "anthropic"}, "anthropic": {}}
+    with pytest.raises(typer.Exit) as exc:
+        _provider_or_exit(cfg, "extract")
+    assert exc.value.exit_code == 2
+
+
+def test_provider_or_exit_unknown_provider_exits_2(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")  # pass the guard
+    cfg = {"providers": {"judge": "magic-mystery-llm"}}
+    with pytest.raises(typer.Exit) as exc:
+        _provider_or_exit(cfg, "judge")
+    assert exc.value.exit_code == 2
 
 
 def test_free_slug_finds_first_open_suffix(tmp_path: Path) -> None:
