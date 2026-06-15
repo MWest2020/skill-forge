@@ -18,8 +18,9 @@ independently shippable; 5–8 (MCP) build on them.
   (live-only, sorted, empty on miss) and a `tags` field on `SkillEntry` so the
   ls Tags column (task 3) reuses the same scan. Tests cover the query + entry
   tags.
-- [ ] **3. `ls --tag` + `tags` command.** Add the `--tag` filter and `Tags`
-  column to `ls`; add `forge tags` (live tag counts). Tests via `CliRunner`.
+- [x] **3. `ls --tag` + `tags` command.** Added the `--tag` filter and a `Tags`
+  column to `ls`; added `forge tags` (live tag counts, `No tags on live skills.`
+  when empty). Tests via `CliRunner`.
 - [ ] **4. `sync --tag`.** Filter `sync`/`--unsync` to a skillset; exit 1 on an
   empty skillset. Test: tagged subset mounts; other tags untouched on
   `--unsync --tag`; empty skillset exits 1.

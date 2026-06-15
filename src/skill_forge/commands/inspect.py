@@ -57,19 +57,45 @@ def sync(
 
 
 @app.command(name="ls")
-def list_skills(root: RootOpt = None) -> None:
+def list_skills(
+    root: RootOpt = None,
+    tag: Annotated[
+        str | None, typer.Option("--tag", help="Only skills carrying this tag.")
+    ] = None,
+) -> None:
     """List all skills (live + draft) with their scores."""
     base = _resolve_root(root)
     entries = storage.list_skills(base)
-    table = Table(title="skills")
+    if tag is not None:
+        entries = [e for e in entries if tag in e.tags]
+    table = Table(title="skills" if tag is None else f"skills tagged {tag!r}")
     table.add_column("Slug", style="bold")
     table.add_column("Status")
     table.add_column("Score", justify="right")
+    table.add_column("Tags")
     for entry in entries:
         score = "—" if entry.judge_score is None else f"{entry.judge_score:.2f}"
         status = "[yellow]draft[/yellow]" if entry.draft else "[green]live[/green]"
-        table.add_row(entry.slug, status, score)
+        table.add_row(entry.slug, status, score, ", ".join(entry.tags))
     Console().print(table)
+
+
+@app.command()
+def tags(root: RootOpt = None) -> None:
+    """List tags present on live skills with their skill counts."""
+    base = _resolve_root(root)
+    counts: dict[str, int] = {}
+    for entry in storage.list_skills(base):
+        if entry.draft:
+            continue
+        for t in entry.tags:
+            counts[t] = counts.get(t, 0) + 1
+    if not counts:
+        typer.echo("No tags on live skills.")
+        return
+    width = max(len(t) for t in counts)
+    for t in sorted(counts):
+        typer.echo(f"{t:<{width}} {counts[t]}")
 
 
 @app.command()

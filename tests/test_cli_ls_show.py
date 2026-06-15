@@ -45,6 +45,44 @@ def test_ls_shows_live_and_drafts(tmp_path: Path) -> None:
     assert "—" in result.stdout
 
 
+def test_ls_filters_by_tag(tmp_path: Path) -> None:
+    fs.write_skill(
+        tmp_path, _skill("sec-skill").model_copy(update={"tags": ["security"]}), draft=False
+    )
+    fs.write_skill(
+        tmp_path, _skill("web-skill").model_copy(update={"tags": ["web"]}), draft=False
+    )
+    result = runner.invoke(app, ["ls", "--tag", "security", "--root", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "sec-skill" in result.stdout
+    assert "web-skill" not in result.stdout
+
+
+def test_tags_lists_live_tag_counts(tmp_path: Path) -> None:
+    fs.write_skill(
+        tmp_path, _skill("a").model_copy(update={"tags": ["security"]}), draft=False
+    )
+    fs.write_skill(
+        tmp_path, _skill("b").model_copy(update={"tags": ["security", "web"]}), draft=False
+    )
+    fs.write_skill(
+        tmp_path,
+        _skill("c", judge_score=None).model_copy(update={"tags": ["security"]}),
+        draft=True,
+    )
+    result = runner.invoke(app, ["tags", "--root", str(tmp_path)])
+    assert result.exit_code == 0
+    # 'security' counts 2 live skills (the draft 'c' is excluded); 'web' counts 1.
+    assert "security" in result.stdout
+    assert "web" in result.stdout
+
+
+def test_tags_empty(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["tags", "--root", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "No tags on live skills." in result.stdout
+
+
 def test_show_existing(tmp_path: Path) -> None:
     fs.write_skill(tmp_path, _skill(), draft=False)
     result = runner.invoke(app, ["show", "demo-skill", "--root", str(tmp_path)])
