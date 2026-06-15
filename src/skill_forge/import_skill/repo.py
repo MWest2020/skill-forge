@@ -25,7 +25,7 @@ from skill_forge.storage import filesystem as storage
 _GITHUB_URL_RE = re.compile(r"^https?://github\.com/([^/]+)/([^/?#]+)")
 _KNOWN_SKILL_FIELDS = {
     "name", "description", "version", "sources", "judge_score",
-    "created", "origin", "signature", "visibility",
+    "created", "origin", "signature", "visibility", "tags",
 }
 
 

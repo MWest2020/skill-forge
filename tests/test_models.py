@@ -32,6 +32,20 @@ def _skill(**overrides: object) -> Skill:
     return Skill(**base)  # type: ignore[arg-type]
 
 
+def test_skill_tags_default_empty() -> None:
+    assert _skill().tags == []
+
+
+def test_skill_tags_deduped_and_sorted() -> None:
+    skill = _skill(tags=["web", "security", "web"])
+    assert skill.tags == ["security", "web"]
+
+
+def test_skill_tags_reject_non_slug() -> None:
+    with pytest.raises(ValidationError):
+        _skill(tags=["Security"])  # uppercase is not slug-shaped
+
+
 def _source() -> Source:
     return Source(
         id="src-abc123",

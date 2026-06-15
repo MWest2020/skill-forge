@@ -79,7 +79,10 @@ def from_seed(home: Path, seed: bytes) -> Identity:
 def canonical_payload(skill: Skill) -> bytes:
     """Stable byte representation of the skill's signed surface."""
     body_sha256 = hashlib.sha256(skill.body.encode("utf-8")).hexdigest()
-    payload = skill.model_dump(mode="json", exclude={"signature", "body"})
+    # `tags` is excluded: it is mutable curation metadata (skillset grouping),
+    # not authored content, so re-tagging must not invalidate the signature —
+    # and skills signed before tags existed still verify.
+    payload = skill.model_dump(mode="json", exclude={"signature", "body", "tags"})
     payload["body_sha256"] = body_sha256
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
 

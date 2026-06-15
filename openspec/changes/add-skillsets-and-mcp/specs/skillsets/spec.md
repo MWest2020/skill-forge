@@ -10,9 +10,17 @@ tags: list[str] = []          # slug-shaped grouping labels; default empty
 
 - Each tag matches the slug rule `[a-z0-9][a-z0-9-]*` (same validator as
   `name`); invalid tags fail model construction with a clear message.
-- Tags are deduplicated and sorted on write, so the on-disk order is stable.
-- `tags` is optional: a skill with no `tags` key parses to `[]` and round-trips
-  back without emitting an empty `tags:` line.
+- Tags are deduplicated and sorted by the validator, so the on-disk order is
+  stable.
+- `tags` is optional: a skill with no `tags` key parses to `[]`. It renders
+  back as `tags: []` (consistent with how the other always-present fields like
+  `judge_score: null` render); a skill that never had tags is not forced to
+  re-write until something else changes it.
+- `tags` is **excluded from the signed canonical payload**
+  (`identity.canonical_payload`). Tags are mutable curation metadata, not
+  authored content: re-tagging a skill must not invalidate its authorship
+  signature, and skills signed before `tags` existed still verify. This is the
+  one field (besides `signature`/`body`) outside the signed surface.
 - `tags` is independent of `origin`. `origin` records provenance (who/where);
   `tags` record purpose (what set). Neither derives from the other.
 

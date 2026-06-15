@@ -65,6 +65,7 @@ class Skill(BaseModel):
     origin: str | None = None
     signature: str | None = None
     visibility: str = "private"
+    tags: list[str] = Field(default_factory=list)
 
     @field_validator("name")
     @classmethod
@@ -109,6 +110,18 @@ class Skill(BaseModel):
         if v not in VISIBILITY_VALUES:
             raise ValueError(f"Skill.visibility must be one of {VISIBILITY_VALUES}, got {v!r}")
         return v
+
+    @field_validator("tags")
+    @classmethod
+    def _tags_slugs(cls, v: list[str]) -> list[str]:
+        # Tags group skills into skillsets (a tag query). They are mutable
+        # curation metadata, deliberately excluded from the signed payload
+        # (see identity.canonical_payload), so re-tagging never breaks a
+        # signature. Deduped + sorted for a stable on-disk order.
+        for tag in v:
+            if not SLUG_RE.fullmatch(tag):
+                raise ValueError(f"Skill.tags entries must be slug-shaped, got {tag!r}")
+        return sorted(set(v))
 
     @field_validator("body")
     @classmethod

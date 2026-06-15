@@ -6,9 +6,14 @@ independently shippable; 5–8 (MCP) build on them.
 
 ## Skillsets (`tags`)
 
-- [ ] **1. `tags` on the model.** Add `tags: list[str] = []` to `Skill` with
-  the slug validator + dedup/sort on write. Test: a skill round-trips tags;
-  invalid tag rejected; missing key → `[]` and no empty `tags:` emitted.
+- [x] **1. `tags` on the model.** Add `tags: list[str] = []` to `Skill` with
+  the slug validator + dedup/sort. Tests: default `[]`; deduped+sorted; invalid
+  tag rejected. **Note:** `tags` is excluded from `canonical_payload` —
+  discovered that signing it would break the 7 existing signatures and is
+  conceptually wrong (tags are mutable curation metadata, not authored
+  provenance). Spec updated accordingly. `_KNOWN_SKILL_FIELDS` updated too.
+  Renders as `tags: []` when empty (consistent with the all-fields convention),
+  so the "no empty line" goal was dropped — noted in the spec.
 - [ ] **2. Storage query.** Add `storage.live_skills_with_tag(root, tag)`
   (live-only, sorted, empty on miss). Test against a fixture tree with mixed
   live/draft + tags.

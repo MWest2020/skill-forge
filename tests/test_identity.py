@@ -116,6 +116,20 @@ def test_verify_detects_tampered_body(tmp_path: Path) -> None:
     assert verify_skill(tampered, identity) is False
 
 
+def test_tags_excluded_from_signed_payload(tmp_path: Path) -> None:
+    """Tags are mutable curation metadata, not authored provenance: changing
+    them must not alter the canonical payload, so a signature survives a
+    re-tag (and skills signed before tags existed still verify)."""
+    identity = _identity(tmp_path)
+    untagged = _skill()
+    retagged = untagged.model_copy(update={"tags": ["security", "web"]})
+    assert canonical_payload(retagged) == canonical_payload(untagged)
+
+    sig = sign_skill(untagged, identity)
+    signed_then_tagged = retagged.model_copy(update={"signature": sig})
+    assert verify_skill(signed_then_tagged, identity) is True
+
+
 def test_verify_detects_tampered_origin(tmp_path: Path) -> None:
     identity = _identity(tmp_path)
     skill = _skill(origin=f"{identity.instance_id}:demo-skill:1")
