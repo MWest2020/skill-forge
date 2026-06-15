@@ -1,4 +1,12 @@
-"""`forge` CLI entrypoint for the skill-forge project."""
+"""`forge` CLI entrypoint for the skill-forge project.
+
+Defines the shared `app` (plus the `identity`/`lineage` sub-apps), the common
+option types, and the small helper layer every command leans on. The
+discover/run/extract commands live here because they are tied to the provider
+machinery (`_build_provider`, patched by tests on this module). All other
+commands live in `skill_forge.commands.*` and register themselves when that
+package is imported at the bottom of this file.
+"""
 
 from __future__ import annotations
 
@@ -14,18 +22,11 @@ from skill_forge.config import load as load_config
 from skill_forge.extraction import distiller
 from skill_forge.extraction.fetcher import DEFAULT_MAX_PAGES, FetchError, fetch
 from skill_forge.identity import Identity, get_or_create
-from skill_forge.import_skill import (
-    SkillImportError,
-    SkillImportErrorGroup,
-    import_directory,
-    import_file,
-)
-from skill_forge.models import JUDGE_AXES, JudgeFinding, JudgeScore, Skill
 from skill_forge.providers.anthropic import AnthropicProvider
 from skill_forge.providers.base import LLMProvider, LLMProviderError
 from skill_forge.providers.claude_code import ClaudeCodeProvider
 from skill_forge.storage import filesystem as storage
-from skill_forge.storage.filesystem import free_slug, read_skill_file
+from skill_forge.storage.filesystem import free_slug
 
 DEFAULT_HOME = Path.home() / ".config" / "skill-forge"
 
@@ -59,6 +60,13 @@ HomeOpt = Annotated[
         help="Override identity home (default: $SKILL_FORGE_HOME or ~/.config/skill-forge).",
     ),
 ]
+OriginTagOpt = Annotated[
+    str | None,
+    typer.Option(
+        "--origin-tag",
+        help="Provenance label (e.g. external/claude-code, microsoft/skills, manual).",
+    ),
+]
 
 
 def _resolve_root(root: Path | None) -> Path:
@@ -82,6 +90,58 @@ def _die(msg: str, code: int) -> NoReturn:
     and code visible, only the echo+raise mechanics are shared."""
     typer.echo(msg, err=True)
     raise typer.Exit(code=code)
+
+
+def _build_provider(name: str, cfg: dict[str, object]) -> LLMProvider:
+    if name == "anthropic":
+        anth = cfg.get("anthropic", {}) or {}
+        assert isinstance(anth, dict)
+        return AnthropicProvider(
+            model=str(anth.get("model", "claude-opus-4-7")),
+            max_tokens=int(anth.get("max_tokens", 4096)),
+        )
+    if name == "claude_code":
+        cc = cfg.get("claude_code", {}) or {}
+        assert isinstance(cc, dict)
+        return ClaudeCodeProvider(
+            binary=str(cc.get("binary", "claude")),
+            timeout=float(cc.get("timeout_s", 120)),
+        )
+    if name == "ollama":
+        from skill_forge.providers.ollama import OllamaProvider
+
+        ol = cfg.get("ollama", {}) or {}
+        assert isinstance(ol, dict)
+        host_raw = ol.get("host")
+        host: str | None = host_raw if isinstance(host_raw, str) else None
+        return OllamaProvider(
+            host=host,
+            model=str(ol.get("model", "llama3.1")),
+            timeout=float(ol.get("timeout_s", 120)),
+        )
+    raise ValueError(
+        f"unknown provider: {name!r} (expected 'anthropic', 'claude_code', or 'ollama')"
+    )
+
+
+def _provider_or_exit(cfg: dict[str, object], role: str) -> LLMProvider:
+    """Resolve the configured provider for `role` ("extract" or "judge"), or
+    exit(2) with a helpful message. Centralizes the preamble every LLM-backed
+    command shared: read providers.<role>, guard the anthropic API key, build
+    the provider, and map an unknown name to a clean exit."""
+    providers = cfg["providers"]
+    assert isinstance(providers, dict)
+    name = str(providers[role])
+    if name == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
+        _die(
+            f"ANTHROPIC_API_KEY not set; switch `providers.{role}` to 'claude_code' "
+            "in config/default.yml or export the key.",
+            2,
+        )
+    try:
+        return _build_provider(name, cfg)
+    except ValueError as exc:
+        _die(str(exc), 2)
 
 
 @app.command()
@@ -213,58 +273,6 @@ def extract(
     )
 
 
-def _build_provider(name: str, cfg: dict[str, object]) -> LLMProvider:
-    if name == "anthropic":
-        anth = cfg.get("anthropic", {}) or {}
-        assert isinstance(anth, dict)
-        return AnthropicProvider(
-            model=str(anth.get("model", "claude-opus-4-7")),
-            max_tokens=int(anth.get("max_tokens", 4096)),
-        )
-    if name == "claude_code":
-        cc = cfg.get("claude_code", {}) or {}
-        assert isinstance(cc, dict)
-        return ClaudeCodeProvider(
-            binary=str(cc.get("binary", "claude")),
-            timeout=float(cc.get("timeout_s", 120)),
-        )
-    if name == "ollama":
-        from skill_forge.providers.ollama import OllamaProvider
-
-        ol = cfg.get("ollama", {}) or {}
-        assert isinstance(ol, dict)
-        host_raw = ol.get("host")
-        host: str | None = host_raw if isinstance(host_raw, str) else None
-        return OllamaProvider(
-            host=host,
-            model=str(ol.get("model", "llama3.1")),
-            timeout=float(ol.get("timeout_s", 120)),
-        )
-    raise ValueError(
-        f"unknown provider: {name!r} (expected 'anthropic', 'claude_code', or 'ollama')"
-    )
-
-
-def _provider_or_exit(cfg: dict[str, object], role: str) -> LLMProvider:
-    """Resolve the configured provider for `role` ("extract" or "judge"), or
-    exit(2) with a helpful message. Centralizes the preamble every LLM-backed
-    command shared: read providers.<role>, guard the anthropic API key, build
-    the provider, and map an unknown name to a clean exit."""
-    providers = cfg["providers"]
-    assert isinstance(providers, dict)
-    name = str(providers[role])
-    if name == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
-        _die(
-            f"ANTHROPIC_API_KEY not set; switch `providers.{role}` to 'claude_code' "
-            "in config/default.yml or export the key.",
-            2,
-        )
-    try:
-        return _build_provider(name, cfg)
-    except ValueError as exc:
-        _die(str(exc), 2)
-
-
 def _run_extract(
     source_url: str,
     *,
@@ -305,558 +313,10 @@ def _run_extract(
         typer.echo(f"  Blocked:       {blocked}")
 
 
-OriginTagOpt = Annotated[
-    str | None,
-    typer.Option(
-        "--origin-tag",
-        help="Provenance label (e.g. external/claude-code, microsoft/skills, manual).",
-    ),
-]
-
-
-@app.command(name="import")
-def import_command(
-    path: Path,
-    origin_tag: OriginTagOpt = None,
-    root: RootOpt = None,
-    home: HomeOpt = None,
-) -> None:
-    """Import an existing SKILL.md from disk into skills/_draft/."""
-    base = _resolve_root(root)
-    identity = _load_identity(home)
-    try:
-        skill, sources = import_file(base, path, identity=identity, origin_tag=origin_tag)
-    except SkillImportError as exc:
-        _die(str(exc), 1)
-    typer.echo(f"Imported: {skill.name}")
-    typer.echo(f"  Draft path: skills/_draft/{skill.name}/SKILL.md")
-    typer.echo(f"  Sources:    sources/{skill.name}.yml ({sources[0].url})")
-
-
-@app.command(name="import-repo")
-def import_repo_command(
-    url: str,
-    origin_tag: OriginTagOpt = None,
-    ref: Annotated[
-        str | None, typer.Option("--ref", help="Branch or commit SHA (default: repo HEAD)")
-    ] = None,
-    max_skills: Annotated[
-        int, typer.Option("--max-skills", help="Refuse repos with more than this many SKILL.md")
-    ] = 50,
-    root: RootOpt = None,
-    home: HomeOpt = None,
-) -> None:
-    """Walk a GitHub repo and import every SKILL.md found inside it."""
-    from skill_forge.import_skill import RepoImportError, import_github_repo
-
-    base = _resolve_root(root)
-    identity = _load_identity(home)
-    try:
-        result = import_github_repo(
-            base,
-            url,
-            identity=identity,
-            origin_tag=origin_tag,
-            ref=ref,
-            max_skills=max_skills,
-        )
-    except RepoImportError as exc:
-        _die(str(exc), 1)
-    for skill in result.imported:
-        typer.echo(f"  imported: {skill.name}")
-    for path, reason in result.skipped:
-        typer.echo(f"  skipped:  {path}  ({reason[:80]})", err=True)
-    typer.echo(f"\n{len(result.imported)} imported, {len(result.skipped)} skipped from {url}")
-
-
-@app.command(name="import-dir")
-def import_dir_command(
-    src_dir: Path,
-    origin_tag: OriginTagOpt = None,
-    root: RootOpt = None,
-    home: HomeOpt = None,
-) -> None:
-    """Bulk-import every subdirectory containing a SKILL.md."""
-    base = _resolve_root(root)
-    identity = _load_identity(home)
-    try:
-        results = import_directory(base, src_dir, identity=identity, origin_tag=origin_tag)
-    except SkillImportErrorGroup as exc:
-        for failure in exc.failures:
-            typer.echo(f"failed: {failure}", err=True)
-        _die(
-            f"\n{len(exc.failures)} import(s) failed. "
-            "Any skills that parsed cleanly still landed in skills/_draft/.",
-            1,
-        )
-    except SkillImportError as exc:
-        _die(str(exc), 1)
-    for skill, _ in results:
-        typer.echo(f"Imported: {skill.name}")
-    typer.echo(f"\n{len(results)} skill(s) imported.")
-
-
-@app.command()
-def judge(slug: str, root: RootOpt = None, home: HomeOpt = None) -> None:
-    """Score a skill against the configured rubric."""
-    from skill_forge.evaluation.judge import judge_skill
-
-    base = _resolve_root(root)
-    cfg = load_config(base)
-    weights: dict[str, float] = cfg["rubric"]["weights"]
-    promotion = cfg["promotion"]
-    provider = _provider_or_exit(cfg, "judge")
-
-    identity = _load_identity(home)
-    try:
-        score, findings = judge_skill(
-            base, slug, provider=provider, weights=weights, identity=identity
-        )
-    except FileNotFoundError as exc:
-        _die(str(exc), 1)
-    except LLMProviderError as exc:
-        _die(str(exc), 3)
-
-    _print_judge_result(slug, score, findings, promotion)
-
-
-def _print_judge_result(
-    slug: str,
-    score: JudgeScore,
-    findings: list[JudgeFinding],
-    promotion: dict[str, float],
-) -> None:
-    total_min = float(promotion.get("total_min", 0.75))
-    axis_min = float(promotion.get("axis_min", 0.50))
-    typer.echo(f"Judging: {slug}")
-    for axis in JUDGE_AXES:
-        value = getattr(score, axis)
-        mark = "✓" if value >= axis_min else "✗"
-        typer.echo(f"  {axis:<20} {value:.2f}  {mark}")
-    typer.echo(f"  {'─' * 28}")
-    total_mark = "✓" if score.total >= total_min else "✗"
-    typer.echo(f"  {'total':<20} {score.total:.2f}  {total_mark}  (threshold {total_min:.2f})")
-    if findings:
-        typer.echo("")
-        typer.echo("Findings:")
-        for f in findings:
-            typer.echo(f"  [{f.severity}] {f.axis}: {f.observation}")
-    verdict = "ready to promote" if score.total >= total_min else "stays in draft"
-    typer.echo(f"\nResult: {verdict}.")
-
-
-@app.command()
-def promote(
-    slug: str,
-    force: Annotated[bool, typer.Option("--force", help="Bypass the threshold check.")] = False,
-    root: RootOpt = None,
-    home: HomeOpt = None,
-) -> None:
-    """Move a draft to live (subject to the configured judge threshold)."""
-    from skill_forge.promotion.promoter import (
-        AlreadyPromotedError,
-        BelowThresholdError,
-        NotJudgedError,
-    )
-    from skill_forge.promotion.promoter import promote as _promote
-
-    base = _resolve_root(root)
-    cfg = load_config(base)
-    identity = _load_identity(home)
-    try:
-        path = _promote(base, slug, promotion=cfg["promotion"], force=force, identity=identity)
-    except NotJudgedError as exc:
-        _die(str(exc), 2)
-    except (BelowThresholdError, AlreadyPromotedError, FileNotFoundError) as exc:
-        _die(str(exc), 1)
-    typer.echo(f"Promoted: {slug}")
-    typer.echo(f"  Live path: {path.relative_to(base)}")
-
-
-@app.command()
-def demote(
-    slug: str,
-    reason: Annotated[str, typer.Option("--reason", "-r", help="Why this skill is being demoted.")],
-    root: RootOpt = None,
-    home: HomeOpt = None,
-) -> None:
-    """Move a live skill back to draft, with a reason recorded in the audit log."""
-    from skill_forge.promotion.promoter import (
-        DemoteCollisionError,
-        NotLiveError,
-    )
-    from skill_forge.promotion.promoter import demote as _demote
-
-    base = _resolve_root(root)
-    identity = _load_identity(home)
-    try:
-        path = _demote(base, slug, reason=reason, identity=identity)
-    except (NotLiveError, DemoteCollisionError) as exc:
-        _die(str(exc), 1)
-    except ValueError as exc:
-        _die(str(exc), 1)
-    typer.echo(f"Demoted: {slug}")
-    typer.echo(f"  Draft path: {path.relative_to(base)}")
-    typer.echo(f"  Reason:     {reason}")
-
-
-@app.command()
-def refine(
-    slug: str,
-    with_source: Annotated[
-        str | None,
-        typer.Option(
-            "--with-source",
-            help="Optional URL or file path with new material to fold in.",
-        ),
-    ] = None,
-    hint: Annotated[
-        str | None,
-        typer.Option("--prompt", help="User-supplied steer for the refinement."),
-    ] = None,
-    root: RootOpt = None,
-    home: HomeOpt = None,
-) -> None:
-    """Generate a new iteration of a skill from its latest judge findings."""
-    from skill_forge.extraction.fetcher import fetch
-    from skill_forge.refinement import (
-        NoJudgmentToRefineError,
-        PendingIterationExistsError,
-        RefinementError,
-        refine_skill,
-    )
-
-    base = _resolve_root(root)
-    cfg = load_config(base)
-    provider = _provider_or_exit(cfg, "judge")
-
-    extra_text: str | None = None
-    if with_source:
-        try:
-            content = fetch(with_source, follow_next=False)
-            extra_text = "\n\n".join(
-                p.body.decode("utf-8", errors="replace") for p in content.pages
-            )
-        except (FileNotFoundError, OSError, FetchError) as exc:
-            _die(f"--with-source fetch failed: {exc}", 1)
-
-    identity = _load_identity(home)
-    try:
-        new_version = refine_skill(
-            base,
-            slug,
-            provider=provider,
-            identity=identity,
-            hint=hint,
-            extra_source=extra_text,
-        )
-    except NoJudgmentToRefineError as exc:
-        _die(str(exc), 2)
-    except PendingIterationExistsError as exc:
-        _die(str(exc), 2)
-    except (RefinementError, FileNotFoundError) as exc:
-        _die(str(exc), 1)
-    except LLMProviderError as exc:
-        _die(str(exc), 3)
-
-    typer.echo(f"Refined: {slug} → v{new_version} (pending)")
-    typer.echo(f"  Review with: forge diff {slug}")
-    typer.echo(f"  Accept with: forge refine-accept {slug} --iteration {new_version}")
-    typer.echo(f"  Reject with: forge refine-reject {slug} --iteration {new_version} --reason ...")
-
-
-@app.command(name="refine-accept")
-def refine_accept(
-    slug: str,
-    iteration: Annotated[int, typer.Option("--iteration", help="Iteration version to accept.")],
-    root: RootOpt = None,
-    home: HomeOpt = None,
-) -> None:
-    """Promote a pending iteration to be the current SKILL.md."""
-    from skill_forge.refinement import RefinementError, accept_iteration
-
-    base = _resolve_root(root)
-    identity = _load_identity(home)
-    try:
-        path = accept_iteration(base, slug, version=iteration, identity=identity)
-    except (RefinementError, FileNotFoundError) as exc:
-        _die(str(exc), 1)
-    typer.echo(f"Accepted: {slug} → v{iteration} is now current")
-    typer.echo(f"  Path: {path.relative_to(base)}")
-
-
-@app.command(name="refine-reject")
-def refine_reject(
-    slug: str,
-    iteration: Annotated[int, typer.Option("--iteration", help="Iteration version to reject.")],
-    reason: Annotated[str, typer.Option("--reason", "-r", help="Why this iteration is rejected.")],
-    root: RootOpt = None,
-) -> None:
-    """Mark a pending iteration as rejected. File stays on disk for audit."""
-    from skill_forge.refinement import RefinementError, reject_iteration
-
-    base = _resolve_root(root)
-    try:
-        reject_iteration(base, slug, version=iteration, reason=reason)
-    except (RefinementError, FileNotFoundError) as exc:
-        _die(str(exc), 1)
-    except ValueError as exc:
-        _die(str(exc), 1)
-    typer.echo(f"Rejected: {slug} v{iteration}")
-    typer.echo(f"  Reason: {reason}")
-
-
-@app.command()
-def diff(
-    slug: str,
-    from_version: Annotated[
-        int | None, typer.Option("--from", help="From-version (default: current - 1).")
-    ] = None,
-    to_version: Annotated[
-        int | None, typer.Option("--to", help="To-version (default: current).")
-    ] = None,
-    root: RootOpt = None,
-) -> None:
-    """Show a unified diff between two iterations of a skill."""
-    import difflib
-    import shutil as _shutil
-    import subprocess
-    import sys
-
-    base = _resolve_root(root)
-    draft = not (base / "skills" / slug / "SKILL.md").is_file()
-    try:
-        lineage = storage.read_lineage(base, slug, draft=draft)
-    except FileNotFoundError as exc:
-        _die(str(exc), 1)
-
-    # Default --to to the highest version on disk (covers pending iterations),
-    # not just current_version. Default --from to to_v - 1.
-    highest = max(it.version for it in lineage.iterations)
-    to_v = to_version if to_version is not None else highest
-    from_v = from_version if from_version is not None else to_v - 1
-    if from_v < 1 or to_v < 1 or from_v == to_v:
-        _die("no prior iteration to diff against (only one version exists)", 1)
-
-    try:
-        from_path = next(storage.iterations_dir(base, slug, draft=draft).glob(f"v{from_v}-*.md"))
-        to_path = next(storage.iterations_dir(base, slug, draft=draft).glob(f"v{to_v}-*.md"))
-    except (StopIteration, FileNotFoundError):
-        _die(f"iteration v{from_v} or v{to_v} not found", 1)
-
-    if _shutil.which("git"):
-        # Only force color when stdout is a TTY — otherwise piped output gets
-        # literal ANSI escape codes.
-        color = "always" if sys.stdout.isatty() else "never"
-        subprocess.run(
-            ["git", "diff", "--no-index", f"--color={color}", str(from_path), str(to_path)],
-            check=False,
-        )
-    else:
-        from_lines = from_path.read_text().splitlines(keepends=True)
-        to_lines = to_path.read_text().splitlines(keepends=True)
-        diff_lines = difflib.unified_diff(
-            from_lines, to_lines, fromfile=str(from_path), tofile=str(to_path)
-        )
-        for line in diff_lines:
-            typer.echo(line, nl=False)
-
-
-@app.command()
-def sync(
-    target: str,
-    target_dir: Annotated[
-        Path | None,
-        typer.Option("--target-dir", help="Override the conventional path for this target."),
-    ] = None,
-    mode: Annotated[str, typer.Option("--mode", help="symlink | copy")] = "symlink",
-    unsync: Annotated[
-        bool,
-        typer.Option(
-            "--unsync",
-            help="Remove previously-synced skills instead of placing new ones.",
-        ),
-    ] = False,
-    root: RootOpt = None,
-) -> None:
-    """Sync promoted skills into a consumer tool's skills directory."""
-    from skill_forge.sync import KNOWN_TARGETS, SyncError, sync_target, unsync_target
-
-    base = _resolve_root(root)
-    if unsync:
-        try:
-            removed, expected = unsync_target(base, target=target)
-        except SyncError as exc:
-            _die(str(exc), 1)
-        typer.echo(f"Unsynced: {removed} of {expected} skill(s) removed for target {target!r}")
-        return
-    try:
-        manifest = sync_target(base, target=target, target_dir=target_dir, mode=mode)
-    except SyncError as exc:
-        typer.echo(str(exc), err=True)
-        if target not in KNOWN_TARGETS:
-            typer.echo(
-                f"  Known targets: {', '.join(sorted(KNOWN_TARGETS))}",
-                err=True,
-            )
-        raise typer.Exit(code=1) from exc
-    typer.echo(f"Synced: {len(manifest.entries)} skill(s) → {manifest.target_dir}")
-    typer.echo(f"  Mode: {mode}")
-    typer.echo(f"  Manifest: sync/{target}.yml")
-
-
-@app.command(name="ls")
-def list_skills(root: RootOpt = None) -> None:
-    """List all skills (live + draft) with their scores."""
-    base = _resolve_root(root)
-    entries = storage.list_skills(base)
-    table = Table(title="skills")
-    table.add_column("Slug", style="bold")
-    table.add_column("Status")
-    table.add_column("Score", justify="right")
-    for entry in entries:
-        score = "—" if entry.judge_score is None else f"{entry.judge_score:.2f}"
-        status = "[yellow]draft[/yellow]" if entry.draft else "[green]live[/green]"
-        table.add_row(entry.slug, status, score)
-    Console().print(table)
-
-
-@app.command()
-def show(slug: str, root: RootOpt = None) -> None:
-    """Show SKILL.md content and sources.yml for a slug."""
-    base = _resolve_root(root)
-    try:
-        storage.read_skill(base, slug)
-    except FileNotFoundError as exc:
-        _die(str(exc), 1)
-
-    live = base / "skills" / slug / "SKILL.md"
-    draft = base / "skills" / "_draft" / slug / "SKILL.md"
-    path = live if live.is_file() else draft
-    status = "draft" if path == draft else "live"
-
-    typer.echo(f"## SKILL.md  ({path}  |  {status})")
-    typer.echo("---")
-    typer.echo(path.read_text(encoding="utf-8"))
-    typer.echo("---")
-    typer.echo("")
-
-    sources_path = base / "sources" / f"{slug}.yml"
-    typer.echo(f"## sources.yml  ({sources_path})")
-    typer.echo("---")
-    if sources_path.is_file():
-        typer.echo(sources_path.read_text(encoding="utf-8"))
-    else:
-        typer.echo("[no provenance file]")
-    typer.echo("---")
-
-
-@identity_app.command(name="show")
-def identity_show(home: HomeOpt = None) -> None:
-    """Print this instance's ID, public key, and private-key location."""
-    from cryptography.hazmat.primitives import serialization
-
-    base = _resolve_home(home)
-    priv_path = base / "identity" / "private_key.pem"
-    just_generated = not priv_path.is_file()
-    try:
-        identity = get_or_create(base)
-    except OSError as exc:
-        _die(f"cannot read or create identity at {base}: {exc}", 1)
-
-    if just_generated:
-        typer.echo("Generated new identity. Back up the private key now.")
-    pub_pem = identity.public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("ascii")
-    typer.echo(f"Instance ID: {identity.instance_id}")
-    typer.echo("Public key:")
-    typer.echo(pub_pem.rstrip())
-    typer.echo(f"Private key: {priv_path}")
-    typer.echo("             (mode 0600 — back this file up; losing it breaks signing)")
-
-
-@identity_app.command(name="backfill")
-def identity_backfill(
-    root: RootOpt = None,
-    home: HomeOpt = None,
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Print the plan, write nothing."),
-    ] = False,
-) -> None:
-    """Stamp origin + signature on existing skills that lack them."""
-    base = _resolve_root(root)
-    identity = _load_identity(home)
-
-    failures: list[str] = []
-    for skill_md in sorted(base.glob("skills/**/SKILL.md")):
-        try:
-            skill: Skill = read_skill_file(skill_md)
-        except (ValueError, OSError) as exc:
-            failures.append(f"failed to parse {skill_md}: {exc}")
-            continue
-        if skill.origin is not None and not skill.origin.startswith(f"{identity.instance_id}:"):
-            typer.echo(f"skipped: {skill_md.relative_to(base)}  foreign origin")
-            continue
-        if skill.origin is not None and skill.signature is not None:
-            typer.echo(f"skipped: {skill_md.relative_to(base)}  already signed")
-            continue
-        if dry_run:
-            typer.echo(f"would stamp: {skill_md.relative_to(base)}")
-            continue
-        is_draft = (base / "skills" / "_draft") in skill_md.parents
-        try:
-            storage.write_skill(base, skill, draft=is_draft, identity=identity, overwrite=True)
-        except (ValueError, OSError) as exc:
-            failures.append(f"failed to stamp {skill_md}: {exc}")
-            continue
-        typer.echo(
-            f"stamped: {skill_md.relative_to(base)}  "
-            f"origin={identity.instance_id}:{skill.name}:{skill.version}"
-        )
-    if failures:
-        for msg in failures:
-            typer.echo(msg, err=True)
-        raise typer.Exit(code=1)
-
-
-@lineage_app.command(name="migrate")
-def lineage_migrate(
-    slug: Annotated[
-        str | None,
-        typer.Option("--slug", help="Migrate only this slug (default: all)."),
-    ] = None,
-    dry_run: Annotated[
-        bool, typer.Option("--dry-run", help="Print the plan, write nothing.")
-    ] = False,
-    root: RootOpt = None,
-) -> None:
-    """Convert flat skills to the iteration-aware layout (creates lineage.yml + v1)."""
-    from skill_forge.lineage import migrate_all, migrate_one
-
-    base = _resolve_root(root)
-    if slug is not None:
-        for draft in (False, True):
-            if migrate_one(base, slug, draft=draft, dry_run=dry_run):
-                where = "draft" if draft else "live"
-                verb = "would migrate" if dry_run else "migrated"
-                typer.echo(f"{verb}: skills/{('_draft/' if draft else '')}{slug} ({where})")
-                return
-        typer.echo(f"nothing to migrate for {slug!r} (already migrated or not found)")
-        return
-
-    migrated = migrate_all(base, dry_run=dry_run)
-    if not migrated:
-        typer.echo("nothing to migrate (all skills already have lineage.yml)")
-        return
-    verb = "would migrate" if dry_run else "migrated"
-    for s, d in migrated:
-        prefix = "skills/_draft" if d else "skills"
-        typer.echo(f"{verb}: {prefix}/{s}")
-    typer.echo(f"\n{len(migrated)} skill(s) {('would be ' if dry_run else '')}migrated.")
-
+# Importing the command package registers every remaining command on `app` (and
+# the identity/lineage sub-apps). Kept at the bottom so the option types and
+# helpers above already exist when each command module imports them back.
+from skill_forge import commands as _commands  # noqa: E402, F401
 
 if __name__ == "__main__":
     app()
