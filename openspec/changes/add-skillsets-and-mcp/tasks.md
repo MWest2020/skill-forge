@@ -28,9 +28,10 @@ independently shippable; 5–8 (MCP) build on them.
 
 ## MCP server
 
-- [ ] **5. `serve` sub-app + stdio skeleton.** Add a `serve_app` Typer group and
-  `forge serve mcp` that starts a stdio MCP server bound to `--root`. Test:
-  server initializes and advertises the three tool schemas.
+- [x] **5. `serve` sub-app + stdio skeleton.** Added `serve_app` + `forge serve
+  mcp` (FastMCP over stdio, bound to `--root`) and `skill_forge.mcp.server`
+  with `build_server` + pure tool functions. Added `mcp` dependency. Test
+  asserts the server advertises exactly the three tools. 281 passed.
 - [ ] **6. `list_skills` + `get_skill`.** Implement both read-only tools
   (live-only; `get_skill` errors cleanly on unknown/draft slug). Tests assert
   payload shape + draft invisibility.

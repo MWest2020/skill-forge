@@ -49,6 +49,13 @@ lineage_app = typer.Typer(
 )
 app.add_typer(lineage_app, name="lineage")
 
+serve_app = typer.Typer(
+    name="serve",
+    help="Serve the live library to other tools (read-only).",
+    no_args_is_help=True,
+)
+app.add_typer(serve_app, name="serve")
+
 RootOpt = Annotated[
     Path | None,
     typer.Option("--root", help="Project root containing the skills/ tree."),
