@@ -52,14 +52,15 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# skill-forge runtime
-runs/
-usage/
+# skill-forge runtime (root-anchored so they never match a src/ package of the
+# same name — e.g. the `sync/` source package).
+/runs/
+/usage/
 # Drafts are intentionally committed (audit trail of rejected skills).
 # Discovery blocklist log stays local — contains URLs that may be sensitive.
 discovery_blocked.log
 
 # Local working state (curation drafts, provenance, sync manifests)
-skills/_draft/
-sources/
-sync/
+/skills/_draft/
+/sources/
+/sync/
