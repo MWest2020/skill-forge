@@ -15,15 +15,14 @@ One commit per task, each referencing the change ID. TDD: red test first.
   wire `import` and `import-dir` to normalize a vanilla SKILL.md too (closes the
   known gap). Test: import a bare `name`+`description` skill via `import`,
   `import-dir`, and `import-repo` — all land a valid normalized skill.
-- [ ] **3. `forge advise` command.** Resolve `<target>` as a path (if the file
-  exists) else a slug; for a path, read + normalize in memory; call
-  `score_skill` (never `judge_skill`); format advice (per-axis + strengths +
-  weaknesses&fixes + verdict). `--runs` override; `--runs < 1` exits 2; missing
-  target exits 1. Tests via `CliRunner`: advise an imported slug; advise a raw
-  vanilla SKILL.md from a path; read-only (tree byte-for-byte unchanged); exit
-  codes.
-- [ ] **4. Docs.** README: `forge advise` as a read-only linter / CI quality
-  gate (path input, `--runs 1` for speed); add the #14 status row.
+- [x] **3. `forge advise` command.** `commands/advise.py`: path wins if the
+  file exists (normalized in memory) else slug; calls `score_skill` (never
+  `judge_skill`); prints per-axis + strengths + weaknesses&fixes + verdict.
+  `--runs<1` exits 2, missing target exits 1. CLI tests cover slug, raw path,
+  read-only (tree unchanged), and both exit codes.
+- [x] **4. Docs.** README documents `forge advise` (linter / CI gate), adds the
+  #14 row, and removes the now-closed normalize known gap (refine-timeout gap
+  kept, marked parked).
 
 ## Validate (gate before archive)
 

@@ -46,6 +46,11 @@ uv run forge show claude-api
 uv run forge judge claude-api
 uv run forge judge claude-api --explain   # show the recorded provenance for the latest score
 
+# Read-only verdict — no promote, no audit, no writes. Accepts an imported slug
+# OR a path to a raw SKILL.md, so it lints skills you haven't adopted yet
+# (wire it into a CI quality gate; --runs 1 for speed).
+uv run forge advise ./some/unimported/SKILL.md --runs 1
+
 # Promote drafts that clear the threshold (total ≥ 0.75, every axis ≥ 0.50)
 uv run forge promote claude-api
 
@@ -82,13 +87,12 @@ Other intake paths:
 ```bash
 uv run forge extract https://example.com/post    # distill one URL into a draft
 uv run forge run "kubernetes pvc resize"          # discover + extract + judge, end to end
-uv run forge import ./path/to/SKILL.md            # import one local SKILL.md (see note below)
+uv run forge import ./path/to/SKILL.md            # import one local SKILL.md
 ```
 
-> **Note on `import` / `import-dir`:** these expect skill-forge's enriched
-> frontmatter (`version`, `created`, `sources`). A vanilla Anthropic skill
-> (just `name` + `description`) is auto-normalized only by `import-repo`
-> today. See [Known gaps](#known-gaps).
+All import paths (`import`, `import-dir`, `import-repo`) normalize a vanilla
+Anthropic skill — just `name` + `description` — by injecting the required
+`version` / `created` / `sources` and stripping foreign frontmatter.
 
 ## License policy
 
@@ -152,6 +156,7 @@ authoritative plan lives in [`STRATEGY.md`](STRATEGY.md).
 | 11 | add-release | `forge release` — signed, version-pinned skill bundles |
 | 12 | add-skillsets-and-mcp | `tags` + skillsets, `ls --tag` / `forge tags` / `sync --tag`, read-only `forge serve mcp` (stdio) |
 | 13 | make-judge-reproducible | median-of-N judging + full judge provenance in the audit trail, `forge judge --explain` |
+| 14 | add-advise-mode | read-only `forge advise <slug-or-path>` (skill linter / CI gate); shared `normalize_skill_md` so all import paths accept a vanilla SKILL.md |
 
 **Descoped** by the `strip-to-curation-core` change (June 2026): #7
 `add-mcp-server-mode` (`serve`), #8 `add-federation` (`peer`), the
@@ -177,15 +182,9 @@ its roadmap section is superseded by `STRATEGY.md`) and
 
 ## Known gaps
 
-Surfaced by a live smoke of the CLI (May 2026):
-
-- **`import` / `import-dir` don't normalize vanilla SKILL.md.** Only
-  `import-repo` injects the required `version` / `created` / `sources` fields
-  and strips foreign frontmatter. A local Anthropic skill with just `name` +
-  `description` fails to import via `import` / `import-dir`. The normalizer
-  (`_normalize_external_skill_md`) should be shared across all import paths.
 - **`refine` can time out on large skills.** The default `claude_code.timeout_s`
   (120s) is too short for big bundled skills; bump it in `config/default.yml`.
+  (Parked.)
 
 ## Development
 
