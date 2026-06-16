@@ -164,6 +164,36 @@ def test_import_directory_groups_failures(tmp_path: Path) -> None:
     assert (root / "skills" / "_draft" / "good-skill" / "SKILL.md").is_file()
 
 
+_VANILLA_SKILL_MD = """\
+---
+name: vanilla-skill
+description: Use this skill when X.
+---
+
+# Vanilla
+## When to use
+Never.
+"""
+
+
+def test_import_file_normalizes_vanilla_skill(tmp_path: Path) -> None:
+    # A bare name+description skill (no version/created/sources) must import via
+    # plain `import`, not just import-repo (the closed known gap).
+    src = _write_skill_md(tmp_path / "src" / "SKILL.md", body=_VANILLA_SKILL_MD)
+    skill, _ = import_file(tmp_path / "repo", src)
+    assert skill.name == "vanilla-skill"
+    assert skill.version == 1
+    loaded = fs.read_skill(tmp_path / "repo", "vanilla-skill")
+    assert len(loaded.sources) == 1  # injected
+
+
+def test_import_directory_normalizes_vanilla_skill(tmp_path: Path) -> None:
+    src_root = tmp_path / "library"
+    _write_skill_md(src_root / "v" / "SKILL.md", body=_VANILLA_SKILL_MD)
+    results = import_directory(tmp_path / "repo", src_root)
+    assert [s.name for s, _ in results] == ["vanilla-skill"]
+
+
 def test_import_directory_shares_run_id_for_bulk(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     src_root = tmp_path / "library"

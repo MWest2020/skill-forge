@@ -1,13 +1,12 @@
 """Lock-in test: `_KNOWN_SKILL_FIELDS` must mirror the Skill model.
 
 Without this test, adding a new field to Skill silently drops it on
-import-repo because `_normalize_external_skill_md` strips anything
-not in the whitelist.
+import because `normalize_skill_md` strips anything not in the whitelist.
 """
 
 from __future__ import annotations
 
-from skill_forge.import_skill.repo import _KNOWN_SKILL_FIELDS
+from skill_forge.import_skill.normalize import _KNOWN_SKILL_FIELDS
 from skill_forge.models import Skill
 
 

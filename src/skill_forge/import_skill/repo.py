@@ -15,20 +15,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
-import yaml
-
 from skill_forge.audit import append_run_event, next_run_id
 from skill_forge.identity import Identity
+from skill_forge.import_skill.normalize import normalize_skill_md
 from skill_forge.models import RunEvent, Skill, Source, SourcesFile
 from skill_forge.storage import filesystem as storage
 
 _GITHUB_URL_RE = re.compile(r"^https?://github\.com/([^/]+)/([^/?#]+)")
-_KNOWN_SKILL_FIELDS = {
-    "name", "description", "version", "sources", "judge_score",
-    "created", "origin", "signature", "visibility", "tags",
-}
-
-
 @dataclass(frozen=True)
 class RepoImportResult:
     imported: list[Skill]
@@ -73,7 +66,7 @@ def import_github_repo(
         # should record (so re-fetching the blob URL and hashing yields the
         # same value), NOT the post-normalization sha.
         raw_sha = hashlib.sha256(content.encode("utf-8")).hexdigest()
-        normalized = _normalize_external_skill_md(content, blob_url=blob_url)
+        normalized = normalize_skill_md(content, source_url=blob_url)
         try:
             skill = _import_normalized(
                 root,
@@ -135,51 +128,6 @@ def _import_normalized(
         ),
     )
     return parsed
-
-
-def _normalize_external_skill_md(content: str, *, blob_url: str) -> str:
-    """Adapt a foreign SKILL.md to our Skill schema.
-
-    Foreign files (e.g. Claude Code's `.claude/skills/*/SKILL.md`) often:
-    - Lack our required fields (version, created, sources) → inject defaults.
-    - Carry extra fields (aligned, allowed_tools, …) that our `extra="forbid"`
-      model rejects → strip them at the import boundary. The body survives
-      untouched.
-
-    Body invariant from change #9: ensure a `## Source` section pointing
-    at the GitHub blob URL.
-    """
-    text = content
-    fm_match = re.match(r"\A---\s*\n(.*?)\n---\s*\n?", text, re.DOTALL)
-    if not fm_match:
-        return text
-    body = text[fm_match.end():]
-    try:
-        fm: dict[str, object] = yaml.safe_load(fm_match.group(1)) or {}
-    except yaml.YAMLError:
-        return text
-    if not isinstance(fm, dict):
-        return text
-
-    fm = {k: v for k, v in fm.items() if k in _KNOWN_SKILL_FIELDS}
-    if "version" not in fm:
-        fm["version"] = 1
-    if "created" not in fm:
-        fm["created"] = datetime.now(UTC).date().isoformat()
-    if "sources" not in fm or not fm["sources"]:
-        sha = hashlib.sha256(content.encode("utf-8")).hexdigest()
-        fm["sources"] = [{"id": f"src-{sha[:6]}"}]
-
-    body = _ensure_source_section(body, blob_url)
-    return f"---\n{yaml.safe_dump(fm, sort_keys=True)}---\n\n{body.lstrip(chr(10))}"
-
-
-def _ensure_source_section(body: str, url: str) -> str:
-    if "## Source" in body:
-        return body
-    if not body.endswith("\n"):
-        body += "\n"
-    return body + f"\n## Source\n\n- {url}\n"
 
 
 def _parse_github_url(url: str) -> tuple[str, str]:

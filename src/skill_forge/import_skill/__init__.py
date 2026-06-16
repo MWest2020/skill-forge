@@ -9,6 +9,7 @@ from .importer import (
     import_directory,
     import_file,
 )
+from .normalize import normalize_skill_md
 from .repo import RepoImportError, RepoImportResult, import_github_repo
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "import_directory",
     "import_file",
     "import_github_repo",
+    "normalize_skill_md",
 ]

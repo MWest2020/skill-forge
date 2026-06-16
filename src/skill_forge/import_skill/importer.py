@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from skill_forge.audit import append_run_event, next_run_id
 from skill_forge.identity import Identity
+from skill_forge.import_skill.normalize import normalize_skill_md
 from skill_forge.models import RunEvent, Skill, Source, SourcesFile
 from skill_forge.storage import filesystem as storage
 
@@ -52,7 +53,8 @@ def import_file(
     except OSError as exc:
         raise SkillImportError(path, str(exc)) from exc
     try:
-        parsed = storage.parse_skill_text(raw.decode("utf-8", errors="replace"), path)
+        text = normalize_skill_md(raw.decode("utf-8", errors="replace"))
+        parsed = storage.parse_skill_text(text, path)
     except (ValueError, ValidationError) as exc:
         raise SkillImportError(path, str(exc)) from exc
 
