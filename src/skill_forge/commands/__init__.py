@@ -9,6 +9,7 @@ helpers exist, so the back-import each module does resolves cleanly.
 from __future__ import annotations
 
 from skill_forge.commands import (  # noqa: F401  (imported for registration side effects)
+    advise,
     identity,
     imports,
     inspect,
