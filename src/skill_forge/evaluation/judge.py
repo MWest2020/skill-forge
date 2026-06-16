@@ -19,6 +19,7 @@ from skill_forge.models import (
     JudgeScore,
     RunEvent,
     RunSummary,
+    Skill,
 )
 from skill_forge.providers._judge import build_judge_score, compute_total
 from skill_forge.providers.base import LLMProvider
@@ -27,28 +28,25 @@ from skill_forge.storage import filesystem as storage
 MAX_RUN_SUMMARIES_PER_SKILL = 20
 
 
-def judge_skill(
-    root: Path,
-    slug: str,
+def score_skill(
+    skill: Skill,
     *,
     provider: LLMProvider,
     weights: dict[str, float],
-    identity: Identity | None = None,
     runs: int = 3,
     temperature: float = 0.0,
     rubric_version: str = "1",
-) -> tuple[JudgeScore, list[JudgeFinding]]:
-    """Score `slug` N times, reduce per axis by median, and record full
-    provenance. Returns the final (median) score + representative findings.
+) -> tuple[JudgeScore, list[JudgeFinding], JudgeProvenance]:
+    """Score a `skill` N times and reduce per axis by median. **No I/O** — pure
+    scoring, so it can back both `judge_skill` (which persists) and `advise`
+    (which doesn't).
 
     The per-axis median is variance-bounded, not bit-exact: hosted models drift
-    across versions, so the audit record supports *re-checking* a score from
-    pinned inputs, not byte-for-byte replay.
+    across versions, so the provenance supports *re-checking* from pinned
+    inputs, not byte-for-byte replay.
     """
     if runs < 1:
         raise ValueError(f"runs must be >= 1, got {runs}")
-    skill = storage.read_skill(root, slug, identity=identity)
-
     judge_runs = [provider.judge(skill, temperature=temperature) for _ in range(runs)]
     # Same skill + same prompt builder → identical prompt every run. Assert it so
     # a provider that accidentally varies the prompt can't slip a bad record in.
@@ -71,7 +69,27 @@ def judge_skill(
         raw_axes=[r.axes for r in judge_runs],
         median_axes=median_axes,
     )
+    return score, findings, provenance
 
+
+def judge_skill(
+    root: Path,
+    slug: str,
+    *,
+    provider: LLMProvider,
+    weights: dict[str, float],
+    identity: Identity | None = None,
+    runs: int = 3,
+    temperature: float = 0.0,
+    rubric_version: str = "1",
+) -> tuple[JudgeScore, list[JudgeFinding]]:
+    """Read `slug`, score it (median-of-N), and record the score + full
+    provenance to the audit trail. Returns the final (median) score + findings."""
+    skill = storage.read_skill(root, slug, identity=identity)
+    score, findings, provenance = score_skill(
+        skill, provider=provider, weights=weights, runs=runs,
+        temperature=temperature, rubric_version=rubric_version,
+    )
     run_id = next_run_id(root)
     append_run_event(
         root,

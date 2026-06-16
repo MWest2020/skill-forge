@@ -202,6 +202,22 @@ def test_judge_skill_records_provenance(tmp_path: Path) -> None:
     assert p.median_axes["clarity"] == pytest.approx(0.7)
 
 
+def test_score_skill_is_pure_and_returns_provenance(tmp_path: Path) -> None:
+    from skill_forge.evaluation.judge import score_skill
+
+    skill = Skill(
+        name="demo", description="Use when X.", version=1,
+        sources=[SourceRef(id="src-abc123")], created=date(2026, 5, 24), body="# B\n",
+    )
+    score, findings, prov = score_skill(
+        skill, provider=_SeqJudgeProvider([0.6, 0.9, 0.7]), weights=_WEIGHTS, runs=3
+    )
+    assert score.clarity == pytest.approx(0.7)
+    assert prov.runs == 3 and len(prov.raw_axes) == 3
+    # Pure: took no root, wrote nothing under tmp_path.
+    assert not list(tmp_path.iterdir())
+
+
 def test_judge_skill_rejects_zero_runs(tmp_path: Path) -> None:
     _seed_skill_on_disk(tmp_path)
     with pytest.raises(ValueError, match="runs must be >= 1"):
