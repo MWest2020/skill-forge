@@ -9,6 +9,9 @@ from pydantic import ValidationError
 
 from skill_forge.models import (
     JUDGE_AXES,
+    TIERS,
+    CalibrationRecord,
+    GoldAttestation,
     JudgeProvenance,
     JudgeRun,
     JudgeScore,
@@ -19,9 +22,81 @@ from skill_forge.models import (
     Source,
     SourceRef,
     SourcesFile,
+    derive_tier,
 )
 
 _HEX64 = "a" * 64
+
+
+def _judged(total: float, rubric_version: str = "2") -> RunEvent:
+    axes = {a: total for a in JUDGE_AXES}
+    prov = JudgeProvenance(
+        provider="x", model_id="x:y", rubric_version=rubric_version, prompt_sha256=_HEX64,
+        temperature=0.0, runs=1, raw_axes=[axes], median_axes=axes,
+    )
+    return RunEvent(
+        run_id="run-2026-06-17-001", event="judged",
+        timestamp=datetime(2026, 6, 17, tzinfo=UTC), skill_slug="demo",
+        scores=JudgeScore(**axes, total=total), judge_provenance=prov,
+    )
+
+
+def _calibration(passed: bool = True, rubric_version: str = "2") -> CalibrationRecord:
+    return CalibrationRecord(
+        rubric_version=rubric_version, model_id="x:y", gold_set_sha256=_HEX64,
+        results=[], agreement=1.0, passed=passed,
+        calibrated_at=datetime(2026, 6, 17, 12, tzinfo=UTC),
+    )
+
+
+def test_derive_tier_gold_beats_all() -> None:
+    assert derive_tier(_judged(0.9), gold_valid=True, calibration=None,
+                       total_min=0.75, axis_min=0.50) == "gold"
+
+
+def test_derive_tier_untiered_when_unjudged() -> None:
+    assert derive_tier(None, gold_valid=False, calibration=None,
+                       total_min=0.75, axis_min=0.50) == "untiered"
+
+
+def test_derive_tier_bronze_when_judged_no_calibration() -> None:
+    assert derive_tier(_judged(0.9), gold_valid=False, calibration=None,
+                       total_min=0.75, axis_min=0.50) == "bronze"
+
+
+def test_derive_tier_silver_on_passing_same_version_calibration() -> None:
+    assert derive_tier(_judged(0.9), gold_valid=False, calibration=_calibration(),
+                       total_min=0.75, axis_min=0.50) == "silver"
+
+
+def test_derive_tier_no_silver_on_rubric_mismatch() -> None:
+    # calibration is for rubric v1; the judged run is v2 → no silver
+    assert derive_tier(_judged(0.9, "2"), gold_valid=False,
+                       calibration=_calibration(rubric_version="1"),
+                       total_min=0.75, axis_min=0.50) == "bronze"
+
+
+def test_derive_tier_no_silver_on_failed_calibration() -> None:
+    assert derive_tier(_judged(0.9), gold_valid=False, calibration=_calibration(passed=False),
+                       total_min=0.75, axis_min=0.50) == "bronze"
+
+
+def test_derive_tier_untiered_below_threshold() -> None:
+    assert derive_tier(_judged(0.40), gold_valid=False, calibration=None,
+                       total_min=0.75, axis_min=0.50) == "untiered"
+
+
+def test_tiers_constant() -> None:
+    assert TIERS == ("untiered", "bronze", "silver", "gold")
+
+
+def test_gold_attestation_rejects_bad_signature() -> None:
+    with pytest.raises(ValidationError):
+        GoldAttestation(
+            skill_origin="forge-abcd1234:demo:1", version=1,
+            gold_public_key="-----BEGIN PUBLIC KEY-----\nx\n-----END PUBLIC KEY-----",
+            signature="not-base64!!", attested_at=datetime(2026, 6, 17, tzinfo=UTC),
+        )
 
 
 def _skill(**overrides: object) -> Skill:

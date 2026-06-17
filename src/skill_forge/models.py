@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validat
 
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 VISIBILITY_VALUES = ("private", "unlisted", "public")
+TIERS = ("untiered", "bronze", "silver", "gold")
 SOURCE_ID_RE = re.compile(r"^src-[a-f0-9]{6}$")
 SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
 RUN_ID_RE = re.compile(r"^run-\d{4}-\d{2}-\d{2}-\d{3}$")
@@ -479,6 +480,101 @@ class RunEvent(BaseModel):
         return v
 
 
+class GoldAttestation(BaseModel):
+    """A human's gold vouch for a specific skill version — a detached signature
+    by the gold key (distinct from the instance auto-signature). Tier is derived
+    from this; there is no writable `tier` field."""
+
+    model_config = _STRICT
+    skill_origin: str
+    version: int = Field(ge=1)
+    gold_public_key: str
+    signature: str
+    attested_at: datetime
+
+    @field_validator("skill_origin")
+    @classmethod
+    def _origin(cls, v: str) -> str:
+        if not ORIGIN_RE.fullmatch(v):
+            raise ValueError(f"GoldAttestation.skill_origin must match origin shape, got {v!r}")
+        return v
+
+    @field_validator("signature")
+    @classmethod
+    def _sig(cls, v: str) -> str:
+        if not SIGNATURE_B64_RE.fullmatch(v):
+            raise ValueError("GoldAttestation.signature must be base64-encoded ASCII")
+        return v
+
+
+class CalibrationSample(BaseModel):
+    """One sample in a calibration run: how the judge ranked a known gold/weak."""
+
+    model_config = _STRICT
+    slug: str
+    version: int = Field(ge=1)
+    total: float
+    expected: str  # "pass" | "fail"
+    correct: bool
+
+
+class CalibrationRecord(BaseModel):
+    """Result of judging the gold set (+ weak fixtures) to check the grader is
+    in-spec. Persisted to the audit trail; silver tier cites it."""
+
+    model_config = _STRICT
+    rubric_version: str
+    model_id: str
+    gold_set_sha256: str
+    results: list[CalibrationSample]
+    agreement: float
+    passed: bool
+    calibrated_at: datetime
+
+    @field_validator("gold_set_sha256")
+    @classmethod
+    def _sha(cls, v: str) -> str:
+        if not SHA256_RE.fullmatch(v):
+            raise ValueError("CalibrationRecord.gold_set_sha256 must be 64 hex chars")
+        return v
+
+    @field_validator("agreement")
+    @classmethod
+    def _agree(cls, v: float) -> float:
+        return _check_unit(v, "CalibrationRecord.agreement")
+
+
+def derive_tier(
+    judged: RunEvent | None,
+    *,
+    gold_valid: bool,
+    calibration: CalibrationRecord | None,
+    total_min: float,
+    axis_min: float,
+) -> str:
+    """Pure tier derivation (one of TIERS). Gold (human-attested) > silver
+    (judged under a passing same-version calibration) > bronze (judged ≥ gate)
+    > untiered. Never reads a stored `tier` field."""
+    if gold_valid:
+        return "gold"
+    if judged is None or judged.scores is None:
+        return "untiered"
+    score = judged.scores
+    passes = score.total >= total_min and all(getattr(score, a) >= axis_min for a in JUDGE_AXES)
+    if not passes:
+        return "untiered"
+    prov = judged.judge_provenance
+    if (
+        calibration is not None
+        and calibration.passed
+        and prov is not None
+        and calibration.rubric_version == prov.rubric_version
+        and calibration.calibrated_at >= judged.timestamp
+    ):
+        return "silver"
+    return "bronze"
+
+
 class SourcesFile(BaseModel):
     """The shape of `sources/{slug}.yml` on disk."""
 
@@ -486,6 +582,7 @@ class SourcesFile(BaseModel):
     slug: str
     sources: list[Source]
     runs: list[RunSummary] = []
+    gold: GoldAttestation | None = None
 
     @field_validator("slug")
     @classmethod
