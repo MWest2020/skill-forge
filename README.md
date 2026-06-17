@@ -40,9 +40,13 @@ uv run forge import-repo https://github.com/anthropics/skills --origin-tag exter
 uv run forge ls
 uv run forge show claude-api
 
-# Score a draft against the rubric (LLM judge). Scored N times (default 3) and
-# reduced by per-axis median to tame LLM non-determinism; full provenance
-# (model, rubric version, prompt hash, every raw run) lands in the audit trail.
+# Score a draft against the rubric (LLM judge). Eight axes (rubric v2: schema,
+# clarity, actionability, gap-coverage, provenance, structural-clarity,
+# example-grounding, tool-declaration). Scored N times (default 3) and reduced
+# by per-axis median to tame LLM non-determinism; full provenance (model, rubric
+# version, prompt hash, every raw run) lands in the audit trail. Bumping the
+# rubric version makes old scores stale (tagged with their version) — re-judge
+# to refresh; nothing is auto-demoted.
 uv run forge judge claude-api
 uv run forge judge claude-api --explain   # show the recorded provenance for the latest score
 
@@ -157,6 +161,7 @@ authoritative plan lives in [`STRATEGY.md`](STRATEGY.md).
 | 12 | add-skillsets-and-mcp | `tags` + skillsets, `ls --tag` / `forge tags` / `sync --tag`, read-only `forge serve mcp` (stdio) |
 | 13 | make-judge-reproducible | median-of-N judging + full judge provenance in the audit trail, `forge judge --explain` |
 | 14 | add-advise-mode | read-only `forge advise <slug-or-path>` (skill linter / CI gate); shared `normalize_skill_md` so all import paths accept a vanilla SKILL.md |
+| 15 | rubric-v2-structure-examples-tools | judge rubric → 8 axes (+ structural_clarity, example_grounding, tool_declaration); `rubric.version: "2"` |
 
 **Descoped** by the `strip-to-curation-core` change (June 2026): #7
 `add-mcp-server-mode` (`serve`), #8 `add-federation` (`peer`), the

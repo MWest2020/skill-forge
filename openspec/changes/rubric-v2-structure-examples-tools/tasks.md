@@ -16,12 +16,12 @@ One commit per task, each referencing the change ID. TDD: red test first.
   `_JUDGE_SYSTEM`, and `SCORE_SKILL_TOOL` (properties + `required` + findings
   axis enum). The consistency lock-in test (all axes in all 3 prompts) must
   pass.
-- [ ] **3. Distiller / refine nudges.** `EXTRACTION_SYSTEM_PROMPT` +
+- [x] **3. Distiller / refine nudges.** `EXTRACTION_SYSTEM_PROMPT` +
   `REFINEMENT_SYSTEM_PROMPT`: delimit where it aids parsing (avoid over-tagging
   short skills), ground guidance in a compact example, name how to invoke any
   tools. Keep the single-SKILL.md output contract. Test: both prompts mention
   examples + tool invocation.
-- [ ] **4. Docs.** README: note the rubric is v2 (8 axes; re-judge to refresh a
+- [x] **4. Docs.** README: note the rubric is v2 (8 axes; re-judge to refresh a
   score; scores are tagged with their rubric version); add the #15 status row.
 
 ## Validate (gate before archive)
