@@ -6,17 +6,18 @@ from datetime import UTC, datetime
 
 import typer
 
-from skill_forge.audit import latest_event
+from skill_forge.audit import append_calibration, latest_event
 from skill_forge.cli import (
     GoldHomeOpt,
     RootOpt,
     _die,
+    _provider_or_exit,
     _resolve_gold_home,
     _resolve_root,
     app,
 )
 from skill_forge.config import load as load_config
-from skill_forge.models import GoldAttestation
+from skill_forge.models import CalibrationRecord, GoldAttestation
 from skill_forge.storage import filesystem as storage
 from skill_forge.trust import compute_tier, gold_valid_for
 
@@ -49,6 +50,56 @@ def gold(slug: str, gold_home: GoldHomeOpt = None, root: RootOpt = None) -> None
     updated = sources.model_copy(update={"gold": attestation})
     storage.write_sources(base, slug, updated, overwrite=True)
     typer.echo(f"Gold: {slug} attested for v{skill.version} (gold key {g.instance_id})")
+
+
+@app.command()
+def calibrate(root: RootOpt = None) -> None:
+    """Re-judge the gold set (+ optional weak fixtures) to check the grader is
+    still in-spec, and record the result. Exit 2 below `calibrate.min_gold`."""
+    from skill_forge.evaluation.calibration import (
+        calibrate as run_calibration,
+    )
+    from skill_forge.evaluation.calibration import (
+        collect_gold_set,
+        collect_weak_fixtures,
+    )
+
+    base = _resolve_root(root)
+    cfg = load_config(base)
+    cal_cfg = cfg.get("calibrate", {}) or {}
+    min_gold = int(cal_cfg.get("min_gold", 3))
+
+    golds = collect_gold_set(base)
+    if len(golds) < min_gold:
+        _die(f"insufficient gold set: {len(golds)} < {min_gold}", 2)
+
+    weak_raw = cal_cfg.get("weak_dir")
+    weak = collect_weak_fixtures(base / weak_raw if weak_raw else None)
+
+    judge_cfg = cfg.get("judge", {}) or {}
+    provider = _provider_or_exit(cfg, "judge")
+    record = run_calibration(
+        golds, weak,
+        provider=provider,
+        weights=cfg["rubric"]["weights"],
+        total_min=float(cfg["promotion"].get("total_min", 0.75)),
+        runs=int(judge_cfg.get("runs", 3)),
+        temperature=float(judge_cfg.get("temperature", 0.0)),
+        rubric_version=str(cfg["rubric"].get("version", "2")),
+    )
+    append_calibration(base, record)
+    _print_calibration(record)
+
+
+def _print_calibration(record: CalibrationRecord) -> None:
+    status = "PASS" if record.passed else "FAIL"
+    typer.echo(
+        f"Calibration: {status}  agreement {record.agreement:.0%}  "
+        f"({len(record.results)} samples, rubric {record.rubric_version}, model {record.model_id})"
+    )
+    for s in record.results:
+        mark = "✓" if s.correct else "✗"
+        typer.echo(f"  {mark} {s.slug} v{s.version}  total {s.total:.2f}  (expected {s.expected})")
 
 
 @app.command()

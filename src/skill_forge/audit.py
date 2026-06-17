@@ -10,9 +10,10 @@ import re
 from datetime import UTC, datetime
 from pathlib import Path
 
-from skill_forge.models import RunEvent
+from skill_forge.models import CalibrationRecord, RunEvent
 
 _RUN_FILE_RE = re.compile(r"^run-(\d{4}-\d{2}-\d{2})-(\d{3})\.jsonl$")
+_CALIBRATION_EVENT = "calibrated"
 
 
 def next_run_id(root: Path, *, now: datetime | None = None) -> str:
@@ -44,6 +45,54 @@ def append_run_event(root: Path, event: RunEvent) -> Path:
     with path.open("a", encoding="utf-8") as fh:
         fh.write(payload + "\n")
     return path
+
+
+def append_calibration(
+    root: Path, record: CalibrationRecord, *, now: datetime | None = None
+) -> Path:
+    """Record a calibration result to the audit trail. It gets its own run id
+    and file; the line carries an `event: "calibrated"` discriminator so
+    `latest_event` (which parses RunEvents) safely skips it."""
+    run_id = next_run_id(root, now=now)
+    runs_dir = root / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    path = runs_dir / f"{run_id}.jsonl"
+    line = {
+        "event": _CALIBRATION_EVENT,
+        "run_id": run_id,
+        "record": record.model_dump(mode="json"),
+    }
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(line, separators=(",", ":")) + "\n")
+    return path
+
+
+def latest_calibration(root: Path, *, passing: bool = False) -> CalibrationRecord | None:
+    """The most recent calibration record (by run id), or None. With
+    `passing=True`, only consider records whose `passed` is true."""
+    runs_dir = root / "runs"
+    if not runs_dir.is_dir():
+        return None
+    best_id: str | None = None
+    best: CalibrationRecord | None = None
+    for path in sorted(runs_dir.glob("run-*.jsonl")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                obj = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(obj, dict) or obj.get("event") != _CALIBRATION_EVENT:
+                continue
+            try:
+                record = CalibrationRecord.model_validate(obj["record"])
+            except (ValueError, KeyError):
+                continue
+            if passing and not record.passed:
+                continue
+            run_id = str(obj.get("run_id", ""))
+            if best is None or run_id >= best_id:  # type: ignore[operator]
+                best_id, best = run_id, record
+    return best
 
 
 def latest_event(root: Path, slug: str, event: str) -> RunEvent | None:

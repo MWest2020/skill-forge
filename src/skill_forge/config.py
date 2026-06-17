@@ -26,6 +26,7 @@ DEFAULTS: dict[str, Any] = {
         },
     },
     "promotion": {"total_min": 0.75, "axis_min": 0.50},
+    "calibrate": {"min_gold": 3, "weak_dir": None},
     "providers": {
         "extract": "claude_code",
         "judge": "claude_code",
