@@ -17,4 +17,5 @@ from skill_forge.commands import (  # noqa: F401  (imported for registration sid
     lineage,
     refine,
     serve,
+    trust,
 )

@@ -10,7 +10,9 @@ from rich.console import Console
 from rich.table import Table
 
 from skill_forge.cli import RootOpt, _die, _resolve_root, app
+from skill_forge.config import load as load_config
 from skill_forge.storage import filesystem as storage
+from skill_forge.trust import compute_tier
 
 
 @app.command()
@@ -72,15 +74,20 @@ def list_skills(
     entries = storage.list_skills(base)
     if tag is not None:
         entries = [e for e in entries if tag in e.tags]
+    promotion = load_config(base)["promotion"]
+    total_min = float(promotion.get("total_min", 0.75))
+    axis_min = float(promotion.get("axis_min", 0.50))
     table = Table(title="skills" if tag is None else f"skills tagged {tag!r}")
     table.add_column("Slug", style="bold")
     table.add_column("Status")
     table.add_column("Score", justify="right")
+    table.add_column("Tier")
     table.add_column("Tags")
     for entry in entries:
         score = "—" if entry.judge_score is None else f"{entry.judge_score:.2f}"
         status = "[yellow]draft[/yellow]" if entry.draft else "[green]live[/green]"
-        table.add_row(entry.slug, status, score, ", ".join(entry.tags))
+        tier = compute_tier(base, entry.slug, total_min=total_min, axis_min=axis_min)
+        table.add_row(entry.slug, status, score, tier, ", ".join(entry.tags))
     Console().print(table)
 
 

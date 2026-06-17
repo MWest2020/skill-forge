@@ -67,6 +67,13 @@ HomeOpt = Annotated[
         help="Override identity home (default: $SKILL_FORGE_HOME or ~/.config/skill-forge).",
     ),
 ]
+GoldHomeOpt = Annotated[
+    Path | None,
+    typer.Option(
+        "--gold-home",
+        help="Override gold-key home (default: <identity home>/gold). Distinct from --home.",
+    ),
+]
 OriginTagOpt = Annotated[
     str | None,
     typer.Option(
@@ -89,6 +96,11 @@ def _resolve_home(home: Path | None) -> Path:
 
 def _load_identity(home: Path | None) -> Identity:
     return get_or_create(_resolve_home(home))
+
+
+def _resolve_gold_home(gold_home: Path | None) -> Path:
+    """The gold key lives under its own dir, separate from the instance key."""
+    return gold_home if gold_home is not None else _resolve_home(None) / "gold"
 
 
 def _die(msg: str, code: int) -> NoReturn:
