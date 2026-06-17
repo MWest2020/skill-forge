@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import stat
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -15,10 +15,13 @@ from skill_forge.identity import (
     canonical_payload,
     from_seed,
     get_or_create,
+    public_key_pem,
+    sign_gold,
     sign_skill,
+    verify_gold,
     verify_skill,
 )
-from skill_forge.models import Skill, SourceRef
+from skill_forge.models import GoldAttestation, Skill, SourceRef
 
 SEED_A = b"\x01" * 32
 SEED_B = b"\x02" * 32
@@ -162,3 +165,43 @@ def test_canonical_payload_excludes_signature_and_body(tmp_path: Path) -> None:
 def test_canonical_payload_is_stable_across_runs(tmp_path: Path) -> None:
     skill = _skill()
     assert canonical_payload(skill) == canonical_payload(skill)
+
+
+# --- gold attestation --------------------------------------------------------
+
+
+def _attestation(
+    gold: Identity, origin: str, version: int, *, sign_version: int
+) -> GoldAttestation:
+    return GoldAttestation(
+        skill_origin=origin,
+        version=version,
+        gold_public_key=public_key_pem(gold),
+        signature=sign_gold(gold, skill_origin=origin, version=sign_version),
+        attested_at=datetime(2026, 6, 17, tzinfo=UTC),
+    )
+
+
+def test_gold_sign_verify_round_trip(tmp_path: Path) -> None:
+    gold = from_seed(tmp_path / "gold", SEED_A)
+    att = _attestation(gold, "forge-abcd1234:demo:1", 1, sign_version=1)
+    assert verify_gold(att) is True
+
+
+def test_gold_verify_fails_on_version_mismatch(tmp_path: Path) -> None:
+    gold = from_seed(tmp_path / "gold", SEED_A)
+    # signature is over version 1, but the attestation claims version 2
+    att = _attestation(gold, "forge-abcd1234:demo:2", 2, sign_version=1)
+    assert verify_gold(att) is False
+
+
+def test_gold_verify_fails_on_wrong_key(tmp_path: Path) -> None:
+    signer = from_seed(tmp_path / "gold", SEED_A)
+    other = from_seed(tmp_path / "other", SEED_B)
+    att = GoldAttestation(
+        skill_origin="forge-abcd1234:demo:1", version=1,
+        gold_public_key=public_key_pem(other),  # not the signer's key
+        signature=sign_gold(signer, skill_origin="forge-abcd1234:demo:1", version=1),
+        attested_at=datetime(2026, 6, 17, tzinfo=UTC),
+    )
+    assert verify_gold(att) is False

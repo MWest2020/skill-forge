@@ -21,7 +21,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 )
 
 if TYPE_CHECKING:
-    from skill_forge.models import Skill
+    from skill_forge.models import GoldAttestation, Skill
 
 _PRIV_MODE = 0o600
 _PUB_MODE = 0o644
@@ -95,6 +95,51 @@ def verify_skill(skill: Skill, identity: Identity) -> bool:
     if skill.signature is None:
         return False
     return identity.verify(canonical_payload(skill), skill.signature)
+
+
+# --- gold attestation (a human vouch, distinct from the instance auto-sig) ----
+
+
+def public_key_pem(identity: Identity) -> str:
+    """The identity's public key as PEM — embedded in a gold attestation so a
+    reader can verify it offline without the private key."""
+    return identity.public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
+
+
+def gold_canonical(skill_origin: str, version: int) -> bytes:
+    """Stable bytes a gold attestation signs: what version of which skill."""
+    return json.dumps(
+        {"skill_origin": skill_origin, "version": version, "kind": "gold"},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def sign_gold(gold: Identity, *, skill_origin: str, version: int) -> str:
+    """Sign a gold attestation with the gold key (a separate Identity)."""
+    return gold.sign(gold_canonical(skill_origin, version))
+
+
+def verify_gold(attestation: GoldAttestation) -> bool:
+    """Verify an attestation against its embedded public key — standalone, no
+    private key needed. False on a tampered signature or version/origin change."""
+    try:
+        pub = serialization.load_pem_public_key(attestation.gold_public_key.encode("ascii"))
+    except ValueError:
+        return False
+    if not isinstance(pub, Ed25519PublicKey):
+        return False
+    try:
+        pub.verify(
+            base64.b64decode(attestation.signature),
+            gold_canonical(attestation.skill_origin, attestation.version),
+        )
+    except InvalidSignature:
+        return False
+    return True
 
 
 # --- internals ----------------------------------------------------------------
