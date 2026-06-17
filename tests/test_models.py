@@ -219,13 +219,7 @@ def _axes(value: float = 0.8) -> dict[str, float]:
 
 
 def _weights() -> dict[str, float]:
-    return {
-        "schema_compliance": 0.20,
-        "clarity": 0.20,
-        "actionability": 0.25,
-        "gap_coverage": 0.20,
-        "provenance_quality": 0.15,
-    }
+    return {axis: 1 / len(JUDGE_AXES) for axis in JUDGE_AXES}
 
 
 def test_judge_score_axis_range() -> None:

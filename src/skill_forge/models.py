@@ -26,6 +26,9 @@ JUDGE_AXES = (
     "actionability",
     "gap_coverage",
     "provenance_quality",
+    "structural_clarity",
+    "example_grounding",
+    "tool_declaration",
 )
 
 _STRICT = ConfigDict(extra="forbid")
@@ -184,6 +187,9 @@ class JudgeScore(BaseModel):
     actionability: float
     gap_coverage: float
     provenance_quality: float
+    structural_clarity: float
+    example_grounding: float
+    tool_declaration: float
     total: float
 
     @field_validator(*JUDGE_AXES, "total")

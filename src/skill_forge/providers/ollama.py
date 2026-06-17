@@ -147,10 +147,14 @@ You judge a SKILL.md against the skill-forge rubric. Output ONLY a
 single JSON object with these keys:
 
   schema_compliance, clarity, actionability, gap_coverage, provenance_quality: each 0.0-1.0
+  structural_clarity, example_grounding, tool_declaration: each 0.0-1.0
   findings: list of {axis, observation, severity} objects (severity in info|warning|blocker)
 
 provenance_quality: score 0.4 or below if the body lacks a `## Source` section
 with human-readable URLs. The sources metadata alone isn't enough.
+structural_clarity: delimited where it aids parsing; penalize over-tagging a short skill.
+example_grounding: grounded in a concrete example; a pure reference card needs none → 1.0.
+tool_declaration: names how to invoke any tools used; a skill using no tools → 1.0.
 
 Do NOT compute a `total` — the caller weights the axes.
 """

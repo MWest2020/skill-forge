@@ -7,13 +7,16 @@
 rubric:
   # Bump when axes/weights/judge prompt change; recorded in every judge's
   # provenance so a score is tied to the rubric it was produced under.
-  version: "1"
-  weights:
-    schema_compliance: 0.20    # valid frontmatter, expected sections
-    clarity:           0.20    # clear "when to use", no unexplained jargon
-    actionability:    0.25    # an agent can follow this, not just read it
-    gap_coverage:     0.20    # adds something versus existing skills
-    provenance_quality: 0.15  # sources clear, license correct, no gaps
+  version: "2"
+  weights:                      # must sum to 1.0
+    actionability:      0.22    # an agent can follow this, not just read it
+    clarity:            0.15    # clear "when to use", no unexplained jargon
+    gap_coverage:       0.15    # adds something versus existing skills
+    schema_compliance:  0.12    # valid frontmatter, expected sections present
+    provenance_quality: 0.12    # sources clear, license correct, no gaps
+    structural_clarity: 0.10    # delimited where it aids parsing; over-tagging penalized
+    example_grounding:  0.08    # guidance grounded in a concrete example (N/A → 1.0)
+    tool_declaration:   0.06    # names how to invoke its tools (N/A → 1.0)
 
 # --- Promotion threshold ------------------------------------------------------
 # Skill is promoted to live when total >= total_min AND every axis >= axis_min.

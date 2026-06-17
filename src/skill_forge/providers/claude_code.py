@@ -183,6 +183,12 @@ Score each axis from 0.0 to 1.0:
 - provenance_quality — body has a `## Source` section with human-readable
   URLs (mandatory; missing → score this axis at 0.4 or below), sources field
   meaningful, body paraphrased not quoted
+- structural_clarity — delimited where it aids parsing; penalize over-tagging a
+  short skill (distinct from schema_compliance, which only checks sections exist)
+- example_grounding — grounded in a concrete example; a pure reference card
+  that needs none scores 1.0
+- tool_declaration — names how to invoke any tools the procedure uses; a skill
+  that invokes no tools scores 1.0
 
 For each axis below 1.0, add one findings entry:
 {"axis": <axis name>, "observation": <1-3 sentences>, "severity": "info"|"warning"|"blocker"}
@@ -195,6 +201,9 @@ Output shape (no extra keys, no `total` — the caller computes it):
   "actionability": 0.0,
   "gap_coverage": 0.0,
   "provenance_quality": 0.0,
+  "structural_clarity": 0.0,
+  "example_grounding": 0.0,
+  "tool_declaration": 0.0,
   "findings": [{"axis": "...", "observation": "...", "severity": "..."}]
 }
 """

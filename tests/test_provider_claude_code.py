@@ -136,13 +136,7 @@ def test_extract_json_none_when_array() -> None:
 # --- judge --------------------------------------------------------------------
 
 
-_WEIGHTS = {
-    "schema_compliance": 0.20,
-    "clarity": 0.20,
-    "actionability": 0.25,
-    "gap_coverage": 0.20,
-    "provenance_quality": 0.15,
-}
+_WEIGHTS = {axis: 1 / len(JUDGE_AXES) for axis in JUDGE_AXES}
 
 
 def _skill() -> Skill:

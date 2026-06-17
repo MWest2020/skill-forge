@@ -13,12 +13,16 @@ import yaml
 
 DEFAULTS: dict[str, Any] = {
     "rubric": {
+        "version": "2",
         "weights": {
-            "schema_compliance": 0.20,
-            "clarity": 0.20,
-            "actionability": 0.25,
-            "gap_coverage": 0.20,
-            "provenance_quality": 0.15,
+            "actionability": 0.22,
+            "clarity": 0.15,
+            "gap_coverage": 0.15,
+            "schema_compliance": 0.12,
+            "provenance_quality": 0.12,
+            "structural_clarity": 0.10,
+            "example_grounding": 0.08,
+            "tool_declaration": 0.06,
         },
     },
     "promotion": {"total_min": 0.75, "axis_min": 0.50},

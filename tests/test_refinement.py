@@ -11,6 +11,7 @@ import pytest
 from skill_forge.identity import from_seed
 from skill_forge.lineage import migrate_one
 from skill_forge.models import (
+    JUDGE_AXES,
     JudgeFinding,
     JudgeScore,
     RunEvent,
@@ -66,16 +67,7 @@ def _seed_judged_skill(tmp_path: Path, findings: list[dict] | None = None) -> No
     # Append a judged event so refinement has findings to work with.
     if findings is None:
         findings = [{"axis": "clarity", "observation": "too jargony", "severity": "warning"}]
-    score_data = {
-        axis: 0.7
-        for axis in (
-            "schema_compliance",
-            "clarity",
-            "actionability",
-            "gap_coverage",
-            "provenance_quality",
-        )
-    }
+    score_data = {axis: 0.7 for axis in JUDGE_AXES}
     score_data["total"] = 0.7
     runs_dir = tmp_path / "runs"
     runs_dir.mkdir(parents=True, exist_ok=True)
@@ -222,16 +214,7 @@ def test_reject_iteration_only_pending(tmp_path: Path) -> None:
 
 def _seed_audit_with_findings(tmp_path: Path) -> None:
     """Append a `judged` event with findings so refine can find them."""
-    score_data = {
-        axis: 0.7
-        for axis in (
-            "schema_compliance",
-            "clarity",
-            "actionability",
-            "gap_coverage",
-            "provenance_quality",
-        )
-    }
+    score_data = {axis: 0.7 for axis in JUDGE_AXES}
     score_data["total"] = 0.7
     event = RunEvent(
         run_id="run-2026-05-24-001",

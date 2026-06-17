@@ -35,7 +35,7 @@ You judge a single SKILL.md against the skill-forge rubric.
 
 Output ONLY via the `score_skill` tool. No prose, no preamble.
 
-Score each of the five axes from 0.0 to 1.0:
+Score each of the eight axes from 0.0 to 1.0:
 
 - schema_compliance — frontmatter valid, expected sections present in order
   ("## When to use", "## Procedure", "## Failure modes"). Missing/extra
@@ -50,6 +50,14 @@ Score each of the five axes from 0.0 to 1.0:
   URLs (mandatory); description reads as paraphrased, not verbatim quotation;
   `sources` field non-empty. Missing `## Source` section is a hard penalty
   (score this axis at 0.4 or below).
+- structural_clarity — content delimited where it aids machine parsing
+  (fence/tag blocks meant to be used verbatim). Distinct from schema_compliance
+  (which only checks sections exist): here, penalize over-tagging — a short
+  skill wrapped in scaffolding scores low, not high.
+- example_grounding — guidance grounded in a concrete worked example. If the
+  skill is a pure reference/lookup card that needs no example, score 1.0.
+- tool_declaration — if the procedure invokes tools/commands, it names how to
+  call them (invocation, key flags). If the skill invokes no tools, score 1.0.
 
 For each axis below 1.0, write one `findings` entry with:
 - axis: the axis name
@@ -120,6 +128,9 @@ SCORE_SKILL_TOOL = {
             "actionability": {"type": "number", "minimum": 0, "maximum": 1},
             "gap_coverage": {"type": "number", "minimum": 0, "maximum": 1},
             "provenance_quality": {"type": "number", "minimum": 0, "maximum": 1},
+            "structural_clarity": {"type": "number", "minimum": 0, "maximum": 1},
+            "example_grounding": {"type": "number", "minimum": 0, "maximum": 1},
+            "tool_declaration": {"type": "number", "minimum": 0, "maximum": 1},
             "findings": {
                 "type": "array",
                 "items": {
@@ -134,6 +145,9 @@ SCORE_SKILL_TOOL = {
                                 "actionability",
                                 "gap_coverage",
                                 "provenance_quality",
+                                "structural_clarity",
+                                "example_grounding",
+                                "tool_declaration",
                             ],
                         },
                         "observation": {"type": "string"},
@@ -152,6 +166,9 @@ SCORE_SKILL_TOOL = {
             "actionability",
             "gap_coverage",
             "provenance_quality",
+            "structural_clarity",
+            "example_grounding",
+            "tool_declaration",
             "findings",
         ],
     },

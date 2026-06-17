@@ -99,6 +99,9 @@ def test_promote_axis_min_check_blocks_skewed_score(tmp_path: Path) -> None:
         "actionability": 0.95,
         "gap_coverage": 0.95,
         "provenance_quality": 0.30,
+        "structural_clarity": 0.95,
+        "example_grounding": 0.95,
+        "tool_declaration": 0.95,
         "total": 0.85,
     }
     runs_dir = tmp_path / "runs"
