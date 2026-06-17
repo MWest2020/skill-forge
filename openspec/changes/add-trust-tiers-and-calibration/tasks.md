@@ -30,7 +30,7 @@ One commit per task. TDD: red test first. C1 (gold/tier) lands green before C2
   `CalibrationRecord` (`event=="calibrated"`) to the audit trail; print summary.
   Config: `calibrate.min_gold` (3), `calibrate.weak_dir` (null). Tests: abort
   below min_gold; pass/fail classification; record persisted + readable.
-- [ ] **5. Silver derivation wired in.** `forge tier`/`ls` pass the latest
+- [x] **5. Silver derivation wired in.** `forge tier`/`ls` pass the latest
   passing `CalibrationRecord` into `derive_tier`, so a bronze skill judged under
   a passing same-version calibration reports silver. Tests: bronze→silver on a
   passing calibration; lapses on rubric bump or stale calibration.

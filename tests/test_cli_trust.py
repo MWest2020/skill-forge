@@ -7,11 +7,13 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from skill_forge.audit import append_run_event
+from skill_forge.audit import append_calibration, append_run_event
 from skill_forge.cli import app
 from skill_forge.identity import from_seed
 from skill_forge.models import (
     JUDGE_AXES,
+    CalibrationRecord,
+    CalibrationSample,
     JudgeProvenance,
     JudgeScore,
     RunEvent,
@@ -83,6 +85,62 @@ def test_gold_lapses_on_version_bump(tmp_path: Path) -> None:
     t = runner.invoke(app, ["tier", "demo", "--root", str(tmp_path)])
     assert "demo: gold" not in t.output
     assert "demo: bronze" in t.output
+
+
+def _append_calibration(
+    tmp_path: Path, *, rubric: str = "2", when: datetime, passed: bool = True
+) -> None:
+    append_calibration(tmp_path, CalibrationRecord(
+        rubric_version=rubric, model_id="x:y", gold_set_sha256=_HEX64,
+        results=[CalibrationSample(
+            slug="g", version=1, total=0.9, expected="pass", correct=True,
+        )],
+        agreement=1.0, passed=passed, calibrated_at=when,
+    ))
+
+
+def test_tier_silver_with_passing_calibration(tmp_path: Path) -> None:
+    # judged 2026-06-17 under rubric 2; a passing same-rubric calibration on the
+    # next day cites that judge run → silver.
+    _seed_live_judged(tmp_path)
+    _append_calibration(tmp_path, rubric="2", when=datetime(2026, 6, 18, tzinfo=UTC))
+    t = runner.invoke(app, ["tier", "demo", "--root", str(tmp_path)])
+    assert t.exit_code == 0, t.output
+    assert "demo: silver" in t.output
+
+
+def test_silver_lapses_on_rubric_bump(tmp_path: Path) -> None:
+    # calibration is for rubric 1, but the judge run was rubric 2 → no silver.
+    _seed_live_judged(tmp_path)
+    _append_calibration(tmp_path, rubric="1", when=datetime(2026, 6, 18, tzinfo=UTC))
+    t = runner.invoke(app, ["tier", "demo", "--root", str(tmp_path)])
+    assert "demo: silver" not in t.output
+    assert "demo: bronze" in t.output
+
+
+def test_silver_lapses_on_stale_calibration(tmp_path: Path) -> None:
+    # calibration predates the judge run → the score wasn't vouched for → bronze.
+    _seed_live_judged(tmp_path)
+    _append_calibration(tmp_path, rubric="2", when=datetime(2026, 6, 16, tzinfo=UTC))
+    t = runner.invoke(app, ["tier", "demo", "--root", str(tmp_path)])
+    assert "demo: silver" not in t.output
+    assert "demo: bronze" in t.output
+
+
+def test_failed_calibration_does_not_confer_silver(tmp_path: Path) -> None:
+    _seed_live_judged(tmp_path)
+    _append_calibration(
+        tmp_path, rubric="2", when=datetime(2026, 6, 18, tzinfo=UTC), passed=False
+    )
+    t = runner.invoke(app, ["tier", "demo", "--root", str(tmp_path)])
+    assert "demo: bronze" in t.output
+
+
+def test_ls_shows_silver(tmp_path: Path) -> None:
+    _seed_live_judged(tmp_path)
+    _append_calibration(tmp_path, rubric="2", when=datetime(2026, 6, 18, tzinfo=UTC))
+    r = runner.invoke(app, ["ls", "--root", str(tmp_path)])
+    assert "silver" in r.output
 
 
 def test_gold_requires_judged(tmp_path: Path) -> None:

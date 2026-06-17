@@ -9,6 +9,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from skill_forge.audit import latest_calibration
 from skill_forge.cli import RootOpt, _die, _resolve_root, app
 from skill_forge.config import load as load_config
 from skill_forge.storage import filesystem as storage
@@ -83,10 +84,13 @@ def list_skills(
     table.add_column("Score", justify="right")
     table.add_column("Tier")
     table.add_column("Tags")
+    calibration = latest_calibration(base, passing=True)
     for entry in entries:
         score = "—" if entry.judge_score is None else f"{entry.judge_score:.2f}"
         status = "[yellow]draft[/yellow]" if entry.draft else "[green]live[/green]"
-        tier = compute_tier(base, entry.slug, total_min=total_min, axis_min=axis_min)
+        tier = compute_tier(
+            base, entry.slug, total_min=total_min, axis_min=axis_min, calibration=calibration
+        )
         table.add_row(entry.slug, status, score, tier, ", ".join(entry.tags))
     Console().print(table)
 

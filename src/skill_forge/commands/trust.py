@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import typer
 
-from skill_forge.audit import append_calibration, latest_event
+from skill_forge.audit import append_calibration, latest_calibration, latest_event
 from skill_forge.cli import (
     GoldHomeOpt,
     RootOpt,
@@ -109,13 +109,21 @@ def tier(slug: str, root: RootOpt = None) -> None:
     promotion = load_config(base)["promotion"]
     total_min = float(promotion.get("total_min", 0.75))
     axis_min = float(promotion.get("axis_min", 0.50))
-    derived = compute_tier(base, slug, total_min=total_min, axis_min=axis_min)
+    calibration = latest_calibration(base, passing=True)
+    derived = compute_tier(
+        base, slug, total_min=total_min, axis_min=axis_min, calibration=calibration
+    )
 
     typer.echo(f"{slug}: {derived}")
     judged = latest_event(base, slug, "judged")
     if judged is not None and judged.scores is not None:
         version = judged.judge_provenance.rubric_version if judged.judge_provenance else "?"
         typer.echo(f"  judged total {judged.scores.total:.2f} (rubric {version})")
+    if derived == "silver" and calibration is not None:
+        typer.echo(
+            f"  calibrated {calibration.calibrated_at.date()} "
+            f"(rubric {calibration.rubric_version}, agreement {calibration.agreement:.0%})"
+        )
     if gold_valid_for(base, slug):
         att = storage.read_sources(base, slug).gold
         if att is not None:
