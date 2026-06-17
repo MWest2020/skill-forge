@@ -139,6 +139,8 @@ Output ONLY a single JSON object with keys: name, description, body.
     ## Failure modes
     ## Source
   The `## Source` section is mandatory: list the source URL(s) as bullets.
+- Delimit where it aids parsing (don't over-tag a short skill), ground the
+  procedure in a concrete example, and name how to invoke any tools used.
 """
 
 
@@ -173,4 +175,6 @@ single JSON object: {"body": "<refined markdown>"}.
   add its URL to `## Source`. Never quote verbatim.
 - If a "user hint" is present, treat it as priority over generic improvements.
 - Preserve specific commands, flags, file paths verbatim.
+- Scored axes: structure where it aids parsing (no over-tagging), ground in a
+  concrete example, and name how to invoke any tools used.
 """

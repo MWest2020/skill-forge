@@ -8,9 +8,24 @@ inconsistently and the user won't notice until totals look weird.
 from __future__ import annotations
 
 from skill_forge.models import JUDGE_AXES, JUDGE_SEVERITIES
-from skill_forge.providers._prompts import JUDGE_SYSTEM_PROMPT
+from skill_forge.providers._prompts import (
+    EXTRACTION_SYSTEM_PROMPT,
+    JUDGE_SYSTEM_PROMPT,
+    REFINEMENT_SYSTEM_PROMPT,
+)
 from skill_forge.providers.claude_code import _JUDGE_PROMPT_HEADER
 from skill_forge.providers.ollama import _JUDGE_SYSTEM
+
+
+def test_extract_and_refine_prompts_nudge_structure_examples_tools() -> None:
+    """rubric v2: the producing prompts must steer toward examples + tool
+    invocation, so generated/refined skills can score on the new axes."""
+    for label, prompt in [
+        ("EXTRACTION_SYSTEM_PROMPT", EXTRACTION_SYSTEM_PROMPT),
+        ("REFINEMENT_SYSTEM_PROMPT", REFINEMENT_SYSTEM_PROMPT),
+    ]:
+        assert "example" in prompt.lower(), f"{label} doesn't nudge example-grounding"
+        assert "invoke" in prompt.lower(), f"{label} doesn't nudge tool invocation"
 
 
 def test_every_axis_named_in_every_judge_prompt() -> None:

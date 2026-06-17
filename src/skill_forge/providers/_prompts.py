@@ -23,6 +23,10 @@ Rules:
   Paraphrase the source — never reproduce long passages verbatim. When the \
   source names specific commands, flags, config keys, file paths, or error \
   messages, cite them exactly in inline code.
+- Structure for an agent reader: delimit content where it aids parsing (fence \
+  blocks for commands/payloads) but do not over-tag a short skill. Ground the \
+  procedure in a concrete example where one helps, kept compact. Where a step \
+  invokes a tool, name how to invoke it (command, key flags).
 
 If the input contains multiple pages separated by `--- next page: <url> ---` \
 markers, synthesize one coherent skill across all of them. Do not emit \
@@ -92,6 +96,8 @@ Rules:
   the findings. If hint contradicts a finding, prefer the hint and note
   the trade-off in a brief inline comment.
 - Preserve specific commands, flags, config keys, and file paths verbatim.
+- Scored axes: delimit where it aids parsing (without over-tagging), ground
+  guidance in a concrete example, and name how to invoke any tools used.
 """
 
 

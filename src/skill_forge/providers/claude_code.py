@@ -47,6 +47,8 @@ Rules:
   them exactly in inline code.
   The `## Source` section is mandatory: list source URL(s) as bullet points \
   with page titles when known (e.g. `- [Title](URL)`).
+- Delimit where it aids parsing (don't over-tag a short skill), ground the \
+  procedure in a concrete example, and name how to invoke any tools used.
 
 If the input contains `--- next page: <url> ---` markers, synthesize one \
 coherent skill across all pages. List every page URL under `## Source`.
@@ -167,6 +169,8 @@ Rules:
   AND add its URL to `## Source`. Never quote verbatim.
 - If `user hint` is provided, treat it as priority over generic improvements.
 - Preserve specific commands, flags, config keys, file paths verbatim.
+- Scored axes: structure where it aids parsing (no over-tagging), ground in a
+  concrete example, and name how to invoke any tools used.
 """
 
 
