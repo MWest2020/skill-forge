@@ -111,6 +111,25 @@ def test_calibrate_aborts_below_min_gold(tmp_path: Path, monkeypatch: pytest.Mon
     assert latest_calibration(tmp_path) is None
 
 
+class _FailingJudge(FakeProvider):
+    def judge(self, skill: Skill, *, temperature: float = 0.0) -> JudgeRun:
+        from skill_forge.providers.base import LLMProviderError
+
+        raise LLMProviderError("`claude -p` timed out after 120.0s")
+
+
+def test_calibrate_exits_3_on_provider_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cli_mod, "ClaudeCodeProvider", lambda **_: _FailingJudge())
+    for slug in ("a", "b", "c"):
+        _seed_gold(tmp_path, slug)
+    result = runner.invoke(app, ["calibrate", "--root", str(tmp_path)])
+    assert result.exit_code == 3
+    assert "timed out" in (result.stderr or result.output)
+    assert latest_calibration(tmp_path) is None  # nothing recorded on failure
+
+
 def test_calibrate_passes_when_grader_agrees(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

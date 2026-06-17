@@ -18,6 +18,7 @@ from skill_forge.cli import (
 )
 from skill_forge.config import load as load_config
 from skill_forge.models import CalibrationRecord, GoldAttestation
+from skill_forge.providers.base import LLMProviderError
 from skill_forge.storage import filesystem as storage
 from skill_forge.trust import compute_tier, gold_valid_for
 
@@ -78,15 +79,18 @@ def calibrate(root: RootOpt = None) -> None:
 
     judge_cfg = cfg.get("judge", {}) or {}
     provider = _provider_or_exit(cfg, "judge")
-    record = run_calibration(
-        golds, weak,
-        provider=provider,
-        weights=cfg["rubric"]["weights"],
-        total_min=float(cfg["promotion"].get("total_min", 0.75)),
-        runs=int(judge_cfg.get("runs", 3)),
-        temperature=float(judge_cfg.get("temperature", 0.0)),
-        rubric_version=str(cfg["rubric"].get("version", "2")),
-    )
+    try:
+        record = run_calibration(
+            golds, weak,
+            provider=provider,
+            weights=cfg["rubric"]["weights"],
+            total_min=float(cfg["promotion"].get("total_min", 0.75)),
+            runs=int(judge_cfg.get("runs", 3)),
+            temperature=float(judge_cfg.get("temperature", 0.0)),
+            rubric_version=str(cfg["rubric"].get("version", "2")),
+        )
+    except LLMProviderError as exc:
+        _die(str(exc), 3)
     append_calibration(base, record)
     _print_calibration(record)
 
