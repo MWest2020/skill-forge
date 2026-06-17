@@ -39,7 +39,7 @@ One commit per task. TDD: red test first. C1 (gold/tier) lands green before C2
 
 ## Validate (gate before archive)
 
-- [ ] All tasks checked; specs match code; `ruff`, `mypy --strict`, `pytest`
+- [x] All tasks checked; specs match code; `ruff`, `mypy --strict`, `pytest`
   green; files ≤ ~200 lines.
-- [ ] Live smoke: `forge gold <a judged live skill>` then `forge tier <slug>`
+- [x] Live smoke: `forge gold <a judged live skill>` then `forge tier <slug>`
   shows **gold**; tamper the attestation → drops below gold. No mocks.
