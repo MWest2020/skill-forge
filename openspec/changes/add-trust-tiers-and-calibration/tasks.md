@@ -34,7 +34,7 @@ One commit per task. TDD: red test first. C1 (gold/tier) lands green before C2
   passing `CalibrationRecord` into `derive_tier`, so a bronze skill judged under
   a passing same-version calibration reports silver. Tests: bronze→silver on a
   passing calibration; lapses on rubric bump or stale calibration.
-- [ ] **6. Docs.** README: tiers (derived, verifiable, informational) + `gold`/
+- [x] **6. Docs.** README: tiers (derived, verifiable, informational) + `gold`/
   `calibrate`/`tier`; #16 status row.
 
 ## Validate (gate before archive)

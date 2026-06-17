@@ -86,6 +86,30 @@ uv run forge diff claude-api                      # review v(n-1) → v(n)
 uv run forge refine-accept claude-api --iteration 2
 ```
 
+Trust tiers are **derived, never declared** — there is no writable `tier` field.
+A skill's tier is computed from verifiable artifacts and shown in `ls`:
+
+- **bronze** — the latest judged run clears the gate (total ≥ 0.75, every axis ≥ 0.50).
+- **silver** — bronze, *and* the judge was just shown to be in-spec: a passing
+  `calibrate` run for the same rubric version, dated on/after that judge run.
+- **gold** — a deliberate human vouch. `forge gold` signs an attestation with a
+  **separate gold key** (`~/.config/skill-forge/gold/`, not the instance
+  auto-signature), so gold means more than "this instance produced it". Gold is
+  version-pinned — a refine lapses it until you re-attest.
+
+```bash
+uv run forge gold claude-api      # human attestation, signed with the gold key
+uv run forge calibrate            # re-judge the gold set; record if the grader still agrees
+uv run forge tier claude-api      # the derived tier + the evidence behind it
+```
+
+`calibrate` re-judges every gold-attested skill (plus optional known-weak
+fixtures under `calibrate.weak_dir`) and records whether the grader still ranks
+them the way the humans did. It refuses below `calibrate.min_gold` golds
+(default 3, exit 2); a *failed* calibration is still recorded — grader drift is
+a result you must see, not an error. Tiers are **informational**: they never
+auto-promote or auto-deploy.
+
 Other intake paths:
 
 ```bash
@@ -162,6 +186,7 @@ authoritative plan lives in [`STRATEGY.md`](STRATEGY.md).
 | 13 | make-judge-reproducible | median-of-N judging + full judge provenance in the audit trail, `forge judge --explain` |
 | 14 | add-advise-mode | read-only `forge advise <slug-or-path>` (skill linter / CI gate); shared `normalize_skill_md` so all import paths accept a vanilla SKILL.md |
 | 15 | rubric-v2-structure-examples-tools | judge rubric → 8 axes (+ structural_clarity, example_grounding, tool_declaration); `rubric.version: "2"` |
+| 16 | add-trust-tiers-and-calibration | derived trust tiers (bronze/silver/gold), `forge gold` (separate gold key) + `forge calibrate` + `forge tier`, `ls` Tier column |
 
 **Descoped** by the `strip-to-curation-core` change (June 2026): #7
 `add-mcp-server-mode` (`serve`), #8 `add-federation` (`peer`), the
