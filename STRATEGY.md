@@ -38,6 +38,21 @@ What no one does, that fits skill-forge's audit/sovereignty framing:
 2. **Pull provenance through the chain.** Source → extraction → refinement → publication, all with sha256, license, judge score, and instance signature. Today, provenance is mostly "trust the marketplace".
 3. **Federation between self-hosted instances.** All current registries are centralized. There is no Mastodon-equivalent for skill libraries.
 
+### Adjacent format — OKF (June 2026)
+
+Google Cloud released the **Open Knowledge Format** (OKF v0.1): a vendor-neutral
+markdown + YAML-frontmatter spec for *curated knowledge/context* (the "LLM-wiki"
+pattern — schemas, metrics, runbooks, metadata catalogs). Structurally it is a
+sibling of SKILL.md (markdown dir, frontmatter, git-diffable, no SDK), but it is
+**a different layer: knowledge an agent reads, not a capability it runs.** OKF
+is *not* a skills/agents standard and not a competitor to the Anthropic Skill
+format — it is complementary (kennis vs. kunde). Decision: **do not build for it
+now** (it lacks the skills layer and is pre-1.0). The durable lesson is
+architectural — skill-forge's value (rubric scoring, trust tiers, calibration,
+provenance) must stay **decoupled from the SKILL.md frontmatter schema**, so
+adding OKF / MCP / a future format is an adapter, not a rewrite. For real
+*skills* interop, track Anthropic's Agent Skills format and MCP, not OKF.
+
 ## The pivot
 
 **Old framing:** skill-forge is an extraction pipeline producing fresh SKILL.md files from arbitrary sources.
