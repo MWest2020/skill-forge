@@ -10,6 +10,24 @@ A personal knowledge pipeline. Curiosities, DevOps patterns, work processes,
 component docs — anything currently spread across docs, blog posts, and own
 notes — gets one structured form that Claude Code and other agents can mount.
 
+## Why (north star)
+
+The goal is **the best possible agents** — agents that load skills, wikis, and
+other context to do real work. skill-forge is **instrumental to that**, not an
+end in itself: it is the **trust/quality layer over curated context artifacts**.
+Skills are simply the first artifact type; the rubric / tier / calibration /
+provenance machinery is format-independent. The whole context stack (prompt →
+skills → llm-wiki → RAG → tools → memory) lacks a governance layer — marketplaces
+ship `latest`, RAG ships whatever embeds, nobody ships *vetted + tiered +
+provenance-tracked*. That gap is skill-forge's reason to exist.
+
+The natural growth direction is trust shifting from **intrinsic** (does the
+rubric think a skill looks good?) toward **extrinsic** (does it measurably make
+the agent better?). Extrinsic measurement means *running agents*, which crosses
+the `no skill execution` line — so that work belongs in a **sister-repo**, not
+here. See [`STRATEGY.md`](STRATEGY.md) for the positioning and the sister-repo
+trigger.
+
 ## Install
 
 Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
