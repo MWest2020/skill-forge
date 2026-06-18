@@ -151,8 +151,33 @@ In addition to the existing non-goals (no scraping, no redistribution, no multi-
 
 - **No central registry.** Federation is peer-to-peer. We will not run skill-forge-hub.com.
 - **No blockchain, no IPFS, no CRDT.** Signed manifests over HTTP. Conflicts resolved by humans.
-- **No skill execution.** skill-forge stores and refines skills; it does not run them. That stays the consumer's job.
+- **No skill execution.** skill-forge stores and refines skills; it does not run them. That stays the consumer's job. **This non-goal is the sister-repo boundary** (see below).
 - **No multi-tenant per instance.** One instance = one identity = one human's library. Multi-user comes via federation, not via in-instance accounts.
+
+## When to spin out a sister-repo (not bloat skill-forge)
+
+North star: **the best possible agents.** skill-forge is instrumental — the
+trust/quality layer over curated context artifacts (skills first; the
+rubric/tier/calibration/provenance machinery is format-independent). The natural
+growth direction is trust shifting from **intrinsic** (does the rubric think the
+SKILL.md looks good?) to **extrinsic** (does the artifact measurably make the
+agent better on a task?). Extrinsic trust requires *running agents*, and the
+`no skill execution` non-goal is the hard line.
+
+So: the moment work must **execute agents**, not just store + judge artifacts,
+it belongs in a **sister-repo** (e.g. `skill-eval` / `agent-bench`), not here.
+Triggers:
+
+1. It needs to **execute** agents against task suites.
+2. It needs its own non-artifact data model/lifecycle (task suites, runs over
+   time, outcome statistics).
+3. Adding it would force skill-forge's core to take a runtime / eval-framework
+   dependency it otherwise wouldn't.
+
+The connection stays thin: the eval repo *consumes* vetted skills from
+skill-forge; skill-forge *consumes* effectiveness scores back as one more judge
+input. Two repos, one interface — do not merge them. Not a roadmap item now;
+this is the signal to recognize it when it arrives.
 
 ## Risk register
 
