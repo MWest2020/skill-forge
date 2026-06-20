@@ -21,6 +21,25 @@ Personal knowledge pipeline. Examstof, DevOps-patterns, work processes, Hydra
 components — anything currently spread across docs, blog posts, and own notes —
 gets one structured form that Claude Code (and Hydra containers) can consume.
 
+## North star
+
+The ultimate goal is **the best possible agents** — agents that load skills,
+wikis, and other context to do real work. skill-forge is **instrumental to
+that**, not an end in itself: it is the **trust/quality layer over curated
+context artifacts**. Skills are simply the first artifact type; the
+rubric / tier / calibration / provenance machinery is format-independent (the
+SKILL.md schema is one adapter, not the core). The wider context stack (prompt →
+skills → llm-wiki/OKF → RAG → tools → memory) lacks a governance layer —
+nobody ships *vetted + tiered + provenance-tracked*. That gap is the reason to
+exist.
+
+The natural growth direction is trust shifting from **intrinsic** (does the
+rubric think a skill looks good?) toward **extrinsic** (does it measurably make
+the agent better on a task?). Extrinsic measurement means *running agents*,
+which crosses the `no skill execution` non-goal — so that work belongs in a
+**sister-repo** (e.g. `skill-eval` / `agent-bench`), not here. The boundary and
+its triggers live in [`STRATEGY.md`](../STRATEGY.md).
+
 ## Non-goals
 
 - No scraping of sources that forbid it (paywalled, robots.txt disallow,
