@@ -64,3 +64,4 @@ discovery_blocked.log
 /skills/_draft/
 /sources/
 /sync/
+config/local.yml
