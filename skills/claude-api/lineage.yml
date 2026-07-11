@@ -1,0 +1,9 @@
+current_version: 1
+iterations:
+- created: '2026-05-31'
+  judge_score: null
+  kind: imported
+  reject_reason: null
+  status: current
+  version: 1
+slug: claude-api
