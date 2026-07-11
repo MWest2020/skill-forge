@@ -116,7 +116,8 @@ def _print_judge_result(
         typer.echo("Findings:")
         for f in findings:
             typer.echo(f"  [{f.severity}] {f.axis}: {f.observation}")
-    verdict = "ready to promote" if score.total >= total_min else "stays in draft"
+    axes_ok = all(getattr(score, axis) >= axis_min for axis in JUDGE_AXES)
+    verdict = "ready to promote" if score.total >= total_min and axes_ok else "stays in draft"
     typer.echo(f"\nResult: {verdict}.")
 
 

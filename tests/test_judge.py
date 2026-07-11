@@ -243,3 +243,22 @@ def test_cli_judge_explain_no_record_exits_1(tmp_path: Path) -> None:
     result = runner.invoke(app, ["judge", "nope", "--explain", "--root", str(tmp_path)])
     assert result.exit_code == 1
     assert "no judged record" in (result.stderr or result.output)
+
+
+def test_print_judge_result_verdict_respects_axis_floor(capsys: pytest.CaptureFixture[str]) -> None:
+    """A total above threshold must not read 'ready to promote' when an axis fails."""
+    from skill_forge.commands.lifecycle import _print_judge_result
+    from skill_forge.providers._judge import build_judge_score
+
+    promotion = {"total_min": 0.75, "axis_min": 0.50}
+
+    axes = {axis: 0.9 for axis in JUDGE_AXES}
+    axes["gap_coverage"] = 0.45  # total stays >= 0.75, one axis under the floor
+    _print_judge_result("demo", build_judge_score(axes, _WEIGHTS), [], promotion)
+    out = capsys.readouterr().out
+    assert build_judge_score(axes, _WEIGHTS).total >= 0.75
+    assert "stays in draft" in out
+
+    axes_ok = {axis: 0.8 for axis in JUDGE_AXES}
+    _print_judge_result("demo", build_judge_score(axes_ok, _WEIGHTS), [], promotion)
+    assert "ready to promote" in capsys.readouterr().out
