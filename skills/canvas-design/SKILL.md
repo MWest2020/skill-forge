@@ -1,0 +1,104 @@
+---
+created: '2026-05-31'
+description: Create beautiful visual art in .png and .pdf documents using design philosophy.
+  You should use this skill when the user asks to create a poster, piece of art, design,
+  or other static piece. Create original visual designs, never copying existing artists'
+  work to avoid copyright violations.
+judge_score: null
+name: canvas-design
+origin: forge-996cce1c:canvas-design:1
+signature: OvDnzTZZnwBMW4RdUsX5q88Xr5SbNFsLyO5+ybTKptyrWYwguWiR5cviYjLcAH5EbbwupO6ALPKhz+FbN+kNBA==
+sources:
+- id: src-a1f288
+tags: []
+version: 1
+visibility: private
+---
+
+Create a design philosophy — a named aesthetic movement — then express it visually on a canvas. The deliverables are a philosophy document (`.md`) and a finished artwork (`.pdf` or `.png`), both produced in this session:
+
+1. Write the design philosophy and save it as a `.md` file.
+2. Deduce the subtle conceptual reference in the request.
+3. Compose and render the canvas as a `.pdf` or `.png`.
+
+## Tools and rendering
+
+All file output goes through the Write tool; all rendering and inspection commands run through the Bash tool.
+
+Compose the canvas as a fixed-size HTML/CSS page (e.g. a 2400×3000px `<div>` in `canvas.html`), then render it headlessly:
+
+- Headless Chromium (preferred): `chromium --headless --disable-gpu --screenshot=canvas.png --window-size=2400,3000 canvas.html`, or `--print-to-pdf=canvas.pdf` for PDF. If `chromium` is not on PATH, try `google-chrome` or `chromium-browser`.
+- Python fallback: `pip install weasyprint`, then `python -c "from weasyprint import HTML; HTML('canvas.html').write_pdf('canvas.pdf')"`. For fully programmatic drawing without HTML, use `reportlab` (PDF) or `Pillow` (PNG).
+
+Fonts: run `ls ./canvas-fonts` first. If the directory exists, load its files with `@font-face` rules pointing at the local paths. If it does not exist, fall back to installed system fonts (`fc-list` enumerates them). **Do not silently download fonts from the network** — if a specific font is essential and network access is permitted, state that before fetching it.
+
+## Phase 1 — Design philosophy creation
+
+Write a visual philosophy — not a layout or a template. It will be interpreted through form, space, color, and composition; through images, graphics, shapes, and patterns; with text only as a sparse visual accent.
+
+Treat the user's request as a foundation, not a constraint: it seeds the direction but should not limit creative freedom. Think of this phase as writing the manifesto of an art movement; phase 3 is making that movement's artwork. The manifesto must push all communication into space, form, color, and composition — information lives in the design, not in paragraphs of text.
+
+**Name the movement** (1–2 words): "Brutalist Joy", "Chromatic Silence", "Metabolist Dreams".
+
+**Articulate the philosophy** in 4–6 substantial paragraphs describing how it manifests through:
+
+- space and form
+- color and material
+- scale and rhythm
+- composition and balance
+- visual hierarchy
+
+Guidelines:
+
+- Touch each design aspect once; don't circle back to color theory or spatial ideas already covered unless adding real depth.
+- Stress craftsmanship repeatedly: the finished piece must read as though a master of the field labored over it for countless hours. Phrases like "meticulously crafted", "painstaking attention", and "the product of deep expertise" belong in the manifesto — this framing measurably shapes the final work.
+- Stay specific about aesthetic direction but leave interpretive room for the composition phase.
+- Keep the philosophy generic: never name the actual subject of the request, so the document reads as if it could govern any commission.
+
+Save the philosophy as a `.md` file.
+
+### Condensed examples
+
+**"Concrete Poetry"** — communication through monumental form and bold geometry. Massive color blocks, sculptural typography (one huge word, tiny labels), Brutalist spatial divisions; Polish poster energy meets Le Corbusier. Meaning carried by visual weight and spatial tension; text only as a rare, powerful gesture.
+
+**"Chromatic Language"** — color as the primary information system. Geometric precision where color zones carry meaning; typography reduced to small sans-serif labels. Josef Albers meets data visualization. Words appear only to anchor what color already shows.
+
+**"Analog Meditation"** — quiet contemplation through texture and breathing room. Paper grain, ink bleeds, vast negative space; photography and illustration dominate while typography whispers. Japanese photobook restraint; short phrases only, never explanatory blocks.
+
+**"Organic Systems"** — natural clustering and modular growth. Rounded forms, organic arrangements, palettes drawn from nature and architecture. Information appears as diagrams, spatial relationships, and iconography; text limited to floating key labels.
+
+**"Geometric Silence"** — pure order and restraint. Grid-based precision, stark graphics, dramatic negative space; Swiss formalism meets Brutalist material honesty. Small essential text, large quiet zones; structure does the talking.
+
+These are condensed sketches; the real philosophy runs 4–6 full paragraphs.
+
+## Phase 2 — Deducing the subtle reference
+
+Before touching the canvas, identify the conceptual thread in the original request. The subject enters the artwork as a quiet, embedded reference — sophisticated rather than literal. Someone who knows the subject should feel it intuitively; everyone else simply sees a masterful abstract composition. Like a jazz musician quoting another tune mid-solo, only listeners who know the quote catch it, yet the music works for everyone. The philosophy supplies the aesthetic language; the deduced reference supplies the soul, woven invisibly into form, color, and composition. It must deepen the work without announcing itself.
+
+## Phase 3 — Canvas creation
+
+Using the philosophy as the foundation and the deduced reference as the undercurrent, build one single-page, design-forward composition (more pages only if requested). Even for pop-culture subjects — a film, a game, a book — keep the register sophisticated: art, never cartoonish.
+
+Aim for the visual language of systematic observation: dense accumulations of marks, repeated elements, and layered patterns that build meaning through patient repetition and reward sustained viewing. Add sparse, clinical typography and small systematic reference markers, as if the piece were a diagram from an imaginary discipline studying something invisible. Anchor it with one or two short phrases placed subtly, and hold to a limited, intentional palette. The paradox is the point: analytical visual language applied to human experience, an artifact suggesting the ephemeral can be mapped and understood.
+
+Text is minimal and visual-first, but context sets the register — a punk venue poster earns bolder type than a ceramics studio identity. Default to thin weights. Vary fonts deliberately (from `./canvas-fonts` when present, system fonts otherwise), and consider making letterforms part of the artwork itself rather than typeset on top of it. **Nothing may overlap and nothing may cross the canvas edge** — every element needs margins and breathing room; verify this in the rendered output, not just in the code.
+
+### Worked example
+
+Request: "something for our jazz club's 30th anniversary."
+
+1. Philosophy: "Chromatic Silence" — color fields as the information system, whisper-quiet typography. Written as 4–6 paragraphs and saved as `chromatic-silence.md`.
+2. Deduced reference: 88 thin vertical strokes across a deep indigo field — the piano keyboard, never named — with one gold interruption at the golden-ratio line marking the 30-year interval.
+3. Render: confirm fonts with `ls ./canvas-fonts`, write `canvas.html` (2400×3000 fixed div, `@font-face` pointing at the local font files), then run `chromium --headless --disable-gpu --screenshot=canvas.png --window-size=2400,3000 canvas.html`. Inspect the PNG, then refine.
+
+## Refinement pass
+
+Treat the first render as a draft, never the deliverable. Reopen the code and polish: do not add graphics — refine what exists until it is crisp and cohesive with the philosophy's minimalism. If the instinct is to draw a new shape or call a new function, stop and ask instead: "how can I make what's already here more of a piece of art?" Re-render and re-inspect after each change. The bar is museum-wall quality: flawless spacing, deliberate color, no overlaps, no clipped elements — a pristine masterpiece of craftsmanship.
+
+## Multi-page option
+
+When more pages are requested, extend the same philosophy into distinctly different compositions — variations and echoes of the first page, as if filling a coffee-table book that tells a quiet story. Bundle them into one `.pdf` or a set of `.png` files.
+
+## Source
+
+- https://github.com/anthropics/skills/blob/main/skills/canvas-design/SKILL.md
