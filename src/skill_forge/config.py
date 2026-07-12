@@ -48,15 +48,22 @@ DEFAULTS: dict[str, Any] = {
 
 
 def load(root: Path | None = None) -> dict[str, Any]:
-    """Return the merged config dict for the given project root."""
+    """Return the merged config dict for the given project root.
+
+    Bundled defaults, overlaid by `config/default.yml`, overlaid by
+    `config/local.yml` (the gitignored per-project override that
+    default.yml's header documents).
+    """
     base = deepcopy(DEFAULTS)
-    config_path = (root or Path.cwd()) / "config" / "default.yml"
-    if not config_path.is_file():
-        return base
-    parsed = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    if not isinstance(parsed, dict):
-        return base
-    return _merge(base, parsed)
+    config_dir = (root or Path.cwd()) / "config"
+    for name in ("default.yml", "local.yml"):
+        config_path = config_dir / name
+        if not config_path.is_file():
+            continue
+        parsed = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        if isinstance(parsed, dict):
+            _merge(base, parsed)
+    return base
 
 
 def _merge(into: dict[str, Any], src: dict[str, Any]) -> dict[str, Any]:

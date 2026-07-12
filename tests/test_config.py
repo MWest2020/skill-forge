@@ -49,3 +49,27 @@ def test_defaults_are_not_mutated_by_load(tmp_path: Path) -> None:
     (cfg_dir / "default.yml").write_text("providers:\n  extract: anthropic\n", encoding="utf-8")
     load(tmp_path)
     assert DEFAULTS["providers"]["extract"] == "claude_code"
+
+
+def test_load_overlays_local_yml_over_default_yml(tmp_path: Path) -> None:
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "default.yml").write_text(
+        "claude_code:\n  binary: claude\n  timeout_s: 120\n", encoding="utf-8"
+    )
+    (cfg_dir / "local.yml").write_text(
+        "claude_code:\n  timeout_s: 300\n", encoding="utf-8"
+    )
+    cfg = load(tmp_path)
+    assert cfg["claude_code"]["timeout_s"] == 300
+    assert cfg["claude_code"]["binary"] == "claude"  # default.yml value survives
+
+
+def test_load_local_yml_alone_overlays_defaults(tmp_path: Path) -> None:
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "local.yml").write_text(
+        "claude_code:\n  timeout_s: 300\n", encoding="utf-8"
+    )
+    cfg = load(tmp_path)
+    assert cfg["claude_code"]["timeout_s"] == 300
