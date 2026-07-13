@@ -46,6 +46,7 @@ class SourceRef(BaseModel):
 
     model_config = _STRICT
     id: str
+    url: str | None = None
 
     @field_validator("id")
     @classmethod
@@ -58,7 +59,9 @@ class SourceRef(BaseModel):
 class Skill(BaseModel):
     """A SKILL.md document: frontmatter fields + the markdown body."""
 
-    model_config = _STRICT
+    # populate_by_name: `allowed-tools` (frontmatter alias) and
+    # `allowed_tools` (Python name) must both construct.
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     name: str
     description: str
     version: int = Field(ge=1)
@@ -70,6 +73,17 @@ class Skill(BaseModel):
     signature: str | None = None
     visibility: str = "private"
     tags: list[str] = Field(default_factory=list)
+    # Claude Code's enforcement field for which tools the skill may invoke.
+    # Frontmatter key is hyphenated; accepts a YAML list or comma-separated
+    # string, always stored as a list. Preserved, not interpreted.
+    allowed_tools: list[str] | None = Field(default=None, alias="allowed-tools")
+
+    @field_validator("allowed_tools", mode="before")
+    @classmethod
+    def _split_allowed_tools(cls, v: object) -> object:
+        if isinstance(v, str):
+            return [part.strip() for part in v.split(",") if part.strip()]
+        return v
 
     @field_validator("name")
     @classmethod

@@ -17,6 +17,7 @@ import yaml
 _KNOWN_SKILL_FIELDS = {
     "name", "description", "version", "sources", "judge_score",
     "created", "origin", "signature", "visibility", "tags",
+    "allowed-tools",
 }
 
 
@@ -49,7 +50,10 @@ def normalize_skill_md(content: str, *, source_url: str | None = None) -> str:
         fm["created"] = datetime.now(UTC).date().isoformat()
     if "sources" not in fm or not fm["sources"]:
         sha = hashlib.sha256(content.encode("utf-8")).hexdigest()
-        fm["sources"] = [{"id": f"src-{sha[:6]}"}]
+        ref: dict[str, object] = {"id": f"src-{sha[:6]}"}
+        if source_url is not None:
+            ref["url"] = source_url
+        fm["sources"] = [ref]
 
     if source_url is not None:
         body = _ensure_source_section(body, source_url)

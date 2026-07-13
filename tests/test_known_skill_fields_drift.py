@@ -14,9 +14,15 @@ def test_known_skill_fields_matches_model() -> None:
     """The whitelist must equal Skill's frontmatter fields exactly.
 
     `body` is excluded because it's content, not frontmatter — it
-    survives the normalizer untouched.
+    survives the normalizer untouched. Fields with an alias (e.g.
+    `allowed-tools`) appear in frontmatter under the alias, so the
+    whitelist carries the alias, not the Python name.
     """
-    expected = set(Skill.model_fields.keys()) - {"body"}
+    expected = {
+        field.alias or name
+        for name, field in Skill.model_fields.items()
+        if name != "body"
+    }
     assert _KNOWN_SKILL_FIELDS == expected, (
         f"drift detected: Skill fields = {expected}, "
         f"whitelist = {_KNOWN_SKILL_FIELDS}. "

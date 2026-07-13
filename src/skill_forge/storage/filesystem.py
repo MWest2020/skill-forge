@@ -358,7 +358,14 @@ def _render_skill(skill: Skill) -> str:
     Frontmatter is dumped with `sort_keys=True` so the canonical payload that
     signatures cover is reproducible across writes.
     """
-    fm_data = skill.model_dump(mode="json", exclude={"body"})
+    fm_data = skill.model_dump(mode="json", by_alias=True, exclude={"body"})
+    # New optional fields stay absent (not `null`) so pre-existing files
+    # render byte-identically and their signatures stay valid.
+    if fm_data.get("allowed-tools") is None:
+        fm_data.pop("allowed-tools", None)
+    for ref in fm_data.get("sources", []):
+        if ref.get("url") is None:
+            ref.pop("url", None)
     fm_yaml = yaml.safe_dump(fm_data, sort_keys=True, default_flow_style=False)
     body = skill.body
     if not body.endswith("\n"):

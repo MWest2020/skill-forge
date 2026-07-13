@@ -44,7 +44,8 @@ def import_github_repo(
     """Walk `repo_url`'s tree, import every SKILL.md found."""
     owner, repo = _parse_github_url(repo_url)
     actual_ref = ref or _default_branch(owner, repo)
-    skill_paths = _walk_for_skill_md(owner, repo, actual_ref)
+    blob_paths = _walk_blobs(owner, repo, actual_ref)
+    skill_paths = sorted(p for p in blob_paths if p.endswith("SKILL.md"))
     if len(skill_paths) > max_skills:
         raise RepoImportError(
             f"{owner}/{repo} contains {len(skill_paths)} SKILL.md files; "
@@ -76,6 +77,12 @@ def import_github_repo(
         except (ValueError, OSError) as exc:
             skipped.append((path, str(exc)))
             continue
+        skipped.extend(
+            _fetch_bundled_files(
+                root, owner=owner, repo=repo, ref=actual_ref,
+                skill_path=path, slug=skill.name, blob_paths=blob_paths,
+            )
+        )
         imported.append(skill)
 
     return RepoImportResult(imported=imported, skipped=skipped)
@@ -149,8 +156,8 @@ def _default_branch(owner: str, repo: str) -> str:
     return branch
 
 
-def _walk_for_skill_md(owner: str, repo: str, ref: str) -> list[str]:
-    """Return every tree path ending in SKILL.md."""
+def _walk_blobs(owner: str, repo: str, ref: str) -> list[str]:
+    """Return every blob path in the tree."""
     raw = _gh_api(f"repos/{owner}/{repo}/git/trees/{ref}?recursive=1")
     data = json.loads(raw)
     if data.get("truncated"):
@@ -168,12 +175,56 @@ def _walk_for_skill_md(owner: str, repo: str, ref: str) -> list[str]:
         if entry.get("type") != "blob":
             continue
         path = entry.get("path", "")
-        if isinstance(path, str) and path.endswith("SKILL.md"):
+        if isinstance(path, str):
             paths.append(path)
     return sorted(paths)
 
 
-def _fetch_file_content(owner: str, repo: str, path: str, ref: str) -> str:
+# Helper dirs a skill may bundle next to its SKILL.md. Copied verbatim into
+# the draft so body references like `scripts/foo.py` resolve locally.
+_BUNDLED_DIRS = ("scripts", "references", "assets")
+_MAX_BUNDLED_FILES = 40
+
+
+def _fetch_bundled_files(
+    root: Path,
+    *,
+    owner: str,
+    repo: str,
+    ref: str,
+    skill_path: str,
+    slug: str,
+    blob_paths: list[str],
+) -> list[tuple[str, str]]:
+    """Copy the skill's sibling scripts/references/assets into its draft dir.
+
+    Per-file failures never fail the skill import — they come back as
+    (path, reason) skip entries.
+    """
+    base = skill_path.removesuffix("SKILL.md")
+    prefixes = tuple(f"{base}{d}/" for d in _BUNDLED_DIRS)
+    bundled = [p for p in blob_paths if p.startswith(prefixes)]
+    skipped: list[tuple[str, str]] = []
+    if len(bundled) > _MAX_BUNDLED_FILES:
+        skipped.extend(
+            (p, f"bundled-file cap ({_MAX_BUNDLED_FILES}) reached")
+            for p in bundled[_MAX_BUNDLED_FILES:]
+        )
+        bundled = bundled[:_MAX_BUNDLED_FILES]
+    draft_dir = root / "skills" / "_draft" / slug
+    for path in bundled:
+        try:
+            payload = _fetch_file_bytes(owner, repo, path, ref)
+        except RepoImportError as exc:
+            skipped.append((path, str(exc)))
+            continue
+        target = draft_dir / path.removeprefix(base)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+    return skipped
+
+
+def _fetch_file_bytes(owner: str, repo: str, path: str, ref: str) -> bytes:
     # URL-quote the path so filenames with ?/# don't break the query.
     quoted = quote(path, safe="/")
     raw = _gh_api(f"repos/{owner}/{repo}/contents/{quoted}?ref={ref}")
@@ -185,8 +236,15 @@ def _fetch_file_content(owner: str, repo: str, path: str, ref: str) -> str:
     if encoding != "base64" or not isinstance(content, str):
         raise RepoImportError(f"{path}: unexpected encoding {encoding!r}")
     try:
-        return base64.b64decode(content).decode("utf-8")
-    except (ValueError, UnicodeDecodeError) as exc:
+        return base64.b64decode(content)
+    except ValueError as exc:
+        raise RepoImportError(f"{path}: decode failed: {exc}") from exc
+
+
+def _fetch_file_content(owner: str, repo: str, path: str, ref: str) -> str:
+    try:
+        return _fetch_file_bytes(owner, repo, path, ref).decode("utf-8")
+    except UnicodeDecodeError as exc:
         raise RepoImportError(f"{path}: decode failed: {exc}") from exc
 
 

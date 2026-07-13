@@ -274,3 +274,70 @@ def test_cli_import_repo_non_github_url(tmp_path: Path) -> None:
     result = runner.invoke(app, ["import-repo", "https://gitlab.com/x/y", "--root", str(tmp_path)])
     assert result.exit_code == 1
     assert "not a GitHub repo URL" in (result.stderr or result.output)
+
+
+def test_bundled_dirs_copied_into_draft(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """scripts/, references/, assets/ next to SKILL.md land in the draft dir."""
+    tree = {
+        "tree": [
+            {"path": "skills/alpha/SKILL.md", "type": "blob"},
+            {"path": "skills/alpha/scripts/helper.py", "type": "blob"},
+            {"path": "skills/alpha/references/schema.md", "type": "blob"},
+            {"path": "skills/alpha/unrelated/notes.md", "type": "blob"},
+            {"path": "skills/beta/scripts/other.py", "type": "blob"},  # not alpha's
+        ]
+    }
+    _stub_gh(
+        monkeypatch,
+        {
+            "contents/skills/alpha/SKILL.md": _ok(
+                json.dumps({"type": "file", "encoding": "base64", "content": _b64(_VALID_SKILL)})
+            ),
+            "contents/skills/alpha/scripts/helper.py": _ok(
+                json.dumps(
+                    {"type": "file", "encoding": "base64", "content": _b64("print('hi')\n")}
+                )
+            ),
+            "contents/skills/alpha/references/schema.md": _ok(
+                json.dumps({"type": "file", "encoding": "base64", "content": _b64("# Schema\n")})
+            ),
+            "git/trees/main": _ok(json.dumps(tree)),
+            "repos/owner/repo": _ok("main\n"),
+        },
+    )
+    result = import_github_repo(tmp_path, "https://github.com/owner/repo")
+    assert [s.name for s in result.imported] == ["alpha-skill"]
+    assert result.skipped == []
+    draft = tmp_path / "skills" / "_draft" / "alpha-skill"
+    assert (draft / "scripts" / "helper.py").read_text() == "print('hi')\n"
+    assert (draft / "references" / "schema.md").read_text() == "# Schema\n"
+    # unrelated/ and beta's files never fetched (would raise unmocked gh call)
+    assert not (draft / "unrelated").exists()
+
+
+def test_bundled_file_failure_skips_not_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    tree = {
+        "tree": [
+            {"path": "skills/alpha/SKILL.md", "type": "blob"},
+            {"path": "skills/alpha/scripts/broken.py", "type": "blob"},
+        ]
+    }
+    _stub_gh(
+        monkeypatch,
+        {
+            "contents/skills/alpha/SKILL.md": _ok(
+                json.dumps({"type": "file", "encoding": "base64", "content": _b64(_VALID_SKILL)})
+            ),
+            "contents/skills/alpha/scripts/broken.py": _fail("boom"),
+            "git/trees/main": _ok(json.dumps(tree)),
+            "repos/owner/repo": _ok("main\n"),
+        },
+    )
+    result = import_github_repo(tmp_path, "https://github.com/owner/repo")
+    assert [s.name for s in result.imported] == ["alpha-skill"]  # skill still lands
+    assert len(result.skipped) == 1
+    assert result.skipped[0][0] == "skills/alpha/scripts/broken.py"
