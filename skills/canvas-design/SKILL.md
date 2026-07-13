@@ -7,9 +7,10 @@ description: Create beautiful visual art in .png and .pdf documents using design
 judge_score: null
 name: canvas-design
 origin: forge-996cce1c:canvas-design:1
-signature: OvDnzTZZnwBMW4RdUsX5q88Xr5SbNFsLyO5+ybTKptyrWYwguWiR5cviYjLcAH5EbbwupO6ALPKhz+FbN+kNBA==
+signature: Y726mnBCyoaM3je+kxYVllav7VIVknRPgdMsVcr1m2ai68wD1im5utv1yvZGTb/bi8elClW+RIl0xwi8TFpXAw==
 sources:
 - id: src-a1f288
+  url: https://github.com/anthropics/skills/blob/main/skills/canvas-design/SKILL.md
 tags: []
 version: 1
 visibility: private

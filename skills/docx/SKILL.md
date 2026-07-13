@@ -13,9 +13,11 @@ description: 'Use this skill whenever the user wants to create, read, edit, or m
 judge_score: null
 name: docx
 origin: forge-996cce1c:docx:1
-signature: Extxe3AgyAEJZd6cOaMajGNEyC91yz0MIA0iogiGlKIyn18zjG4seJFmZgU9mTxFRgSd3GE+3dZjWOjf7eNCAQ==
+signature: /+rD/rS8qDDnwWVH45E/mUtjsPAv2ZALub445V4eiLX7mP8SSwXfuMwHKro9xbZMQqahmEXzNoltL5KrvQDbCw==
 sources:
 - id: src-cfbabd
+  url: https://github.com/anthropics/skills/blob/main/skills/docx/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

@@ -7,9 +7,11 @@ description: Suite of tools for creating elaborate, multi-component claude.ai HT
 judge_score: null
 name: web-artifacts-builder
 origin: forge-996cce1c:web-artifacts-builder:1
-signature: ezJpAqnJwZzlGK8jNUcFuO/l1Y9jtx8Pr98iKj6NNBrY0P7ovR4f+dzOUnXTkaY5QKMSIt+LcKLJYvEGYD2RAQ==
+signature: L4ot+XrckQZVtSTtmiDJ7bjd/wy8lWjQ+8f+gwvAm1+cRuHqGNjbxIXGqU68hhZrVzKNp1yP5JHO6WStaPYFBQ==
 sources:
 - id: src-81c500
+  url: https://github.com/anthropics/skills/blob/main/skills/web-artifacts-builder/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

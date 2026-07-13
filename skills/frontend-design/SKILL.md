@@ -8,9 +8,11 @@ description: Create distinctive, production-grade frontend interfaces with high 
 judge_score: null
 name: frontend-design
 origin: forge-996cce1c:frontend-design:1
-signature: M83KjCe9RklZrnUghTPAwZYuGJ3TfjlFUc2yOuzOXA+K5mG2CiEkYIyoxdODdOtgH40cQYvHE4yU5BQ1tKogDA==
+signature: gAOZeIrxgwwUNRnwzkMSKxK49WWaRy3NZZ0g1sAP7dzqeR/HZyhiZKWDD1C6fBUdQtZ6poKMbBuRH0eIELc1Cw==
 sources:
 - id: src-b81e2f
+  url: https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

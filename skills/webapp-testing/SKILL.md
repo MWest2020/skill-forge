@@ -6,9 +6,11 @@ description: Toolkit for interacting with and testing local web applications usi
 judge_score: null
 name: webapp-testing
 origin: forge-996cce1c:webapp-testing:1
-signature: qcuJzPj/X4TqW/RobFXp5hhG/4T+bPIrgfvH/2eElqJN5cdX4S+XBosJSTs7V7ZrlKK3aUiLoEQZcaJJiecRBA==
+signature: a1bd26alXdiN26TRpN73AulHULTwGYYr2MfNafeiOfMtTr1cvZgQKene3osA5J/HzuAmdaT2D9d2J8D9CPULCw==
 sources:
 - id: src-51b734
+  url: https://github.com/anthropics/skills/blob/main/skills/webapp-testing/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

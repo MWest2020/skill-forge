@@ -13,9 +13,11 @@ description: "Build, debug, and optimize Claude API / Anthropic SDK apps. Apps b
 judge_score: null
 name: claude-api
 origin: forge-996cce1c:claude-api:1
-signature: pifYim8Oq9uJ5FrJ7JNQXXdps3zBNHgU1t/L5t0xvh8cIoEmy1ckpCbke1QcZlIULqxflkMLE0HNJ/1VeiopBg==
+signature: QaA9TWWrQDquf94hGtgm5QiFn4tASJoKSpIHF5J3In8a0YjpaNApladsaZwa7YU3pUJkJXTcaVYQCL4PaQYSBQ==
 sources:
 - id: src-47d678
+  url: https://github.com/anthropics/skills/blob/main/skills/claude-api/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

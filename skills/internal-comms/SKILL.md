@@ -8,9 +8,11 @@ description: A set of resources to help me write all kinds of internal communica
 judge_score: null
 name: internal-comms
 origin: forge-996cce1c:internal-comms:1
-signature: 52teoS+qFCpv8tay0cWWYFAviKciWHx5VHRmI/PWOC2VuG577WWx0p5vE+LEFBAWeI8BZA7dW3BWT9ez8a6QAA==
+signature: NRwZCljR24Q3Mkui/Or/WB5j2yzYeuoBDqCzxfjiVaJjWL97l860ee5xnvZq0mWLQTzTuoxIOhhNJ8oYaYV4BA==
 sources:
 - id: src-067b75
+  url: https://github.com/anthropics/skills/blob/main/skills/internal-comms/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

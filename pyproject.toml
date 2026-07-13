@@ -38,6 +38,9 @@ build-backend = "uv_build"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# skills/ holds imported artifacts (SKILL.md + verbatim upstream helper
+# scripts); third-party content is curated, not linted as our code.
+extend-exclude = ["skills"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N"]

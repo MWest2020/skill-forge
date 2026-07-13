@@ -7,9 +7,11 @@ description: Guide for creating high-quality MCP (Model Context Protocol) server
 judge_score: null
 name: mcp-builder
 origin: forge-996cce1c:mcp-builder:1
-signature: 6dEdfiTtPgj9F1OuNvFpmrmk0DG3+QpO4EcJBnqpb3Kfsx4jIiEqMwuhxoxQ5GYMI2b0p3QH/V/m6AO3pRdfDg==
+signature: 4KhABQMnmVGZxReeiPNIzI2PBtKEdKhQp8qkxlVTxbQ7dHbKAwOlu7XLe98WLATHl8o/ll7wBj31zBR9fF63Dg==
 sources:
 - id: src-0f4592
+  url: https://github.com/anthropics/skills/blob/main/skills/mcp-builder/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

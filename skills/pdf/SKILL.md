@@ -9,9 +9,11 @@ description: Use this skill whenever the user wants to do anything with PDF file
 judge_score: null
 name: pdf
 origin: forge-996cce1c:pdf:1
-signature: wsdSJ1onX67J5ncvUvD5pDPEM0oGiEyDMPjAXogNHW08iP9tcBQOuF8e1QAYUcmWJbUgyQjwSPfGjVGLybl9Ag==
+signature: 8eNmWyDMZGQBEV1q+VaFJotJIraTfaJSeAqrZcpaf4o9Z0R1QjOJ5vPLp+dnjYduKHxny/aRDVsAfiZW+O5MDg==
 sources:
 - id: src-9f78b8
+  url: https://github.com/anthropics/skills/blob/main/skills/pdf/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

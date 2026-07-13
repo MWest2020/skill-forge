@@ -9,9 +9,11 @@ description: Guide users through a structured workflow for co-authoring document
 judge_score: null
 name: doc-coauthoring
 origin: forge-996cce1c:doc-coauthoring:1
-signature: i/Hjm9huFrQ6ZKzZRVZk76VHf6ycJbQsn5p2MKCZEzZfn5l0OzE3BEx2wHnDzGH2k9JTZKhSUITHgSJR+7l7DQ==
+signature: 4SW2gPlEYSL8nnUrW8W3StWc9JSwAsZgyQvOqmXoT6L/+k33PBP76cB6elfZTHvW8fVD2CVGuiNfSYM3gmIODw==
 sources:
 - id: src-2e47d7
+  url: https://github.com/anthropics/skills/blob/main/skills/doc-coauthoring/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

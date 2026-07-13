@@ -7,9 +7,11 @@ description: Create new skills, modify and improve existing skills, and measure 
 judge_score: null
 name: skill-creator
 origin: forge-996cce1c:skill-creator:1
-signature: 1vW5lHraTad13WLNeMoUyujcZMXOPPqQHokYMGqZry1ZCbCG7nvm+xsFNyrpDyAj9EC81crhWP202gVBxsKiBQ==
+signature: Aro4Pyz8Rw1C7S7+VhHSFMeCeqGdBtOzqBD+bcX33jMNpeax+JOqBCf2jMkEBA50BfFEgNPXMk1dk7GvLMsWAw==
 sources:
 - id: src-dcd480
+  url: https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

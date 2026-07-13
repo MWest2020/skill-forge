@@ -12,9 +12,11 @@ description: "Use this skill any time a .pptx file is involved in any way \u2014
 judge_score: null
 name: pptx
 origin: forge-996cce1c:pptx:1
-signature: FyXFajhNoXBJnag0jSVwKrse9FnvCBhFb7ABFzWXw0KDu/4Dqat7R8eNgNyzRO4AGnwIqRs1e1VkPoRp0cLhBw==
+signature: N7qwu6ZbmUQLY9cueqoQPuz9I4Y1vWkMhbRGNekhMgyAeNjkfcFUb7NqcjIDReqsYFE5e0d/YmHDd7GES2+VAQ==
 sources:
 - id: src-e5b0df
+  url: https://github.com/anthropics/skills/blob/main/skills/pptx/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

@@ -7,9 +7,11 @@ description: Creating algorithmic art using p5.js with seeded randomness and int
 judge_score: null
 name: algorithmic-art
 origin: forge-996cce1c:algorithmic-art:1
-signature: 7U2qGLsbYZEQc3eKXeF6EbrlWslmJSD7gDKh1t1E3D4OApjCUYsJbZFNKEuSDaVDMOuZHYUzM6ZYCFC/oJ4yAg==
+signature: V6uyWvLC/MlHlA3OdFjADz0cwRY+yzL7dRVYqtW8kqsHWoFBkd6jCZTpLsN+yfzwlDDUQSXak7cnBXj6cA08DA==
 sources:
 - id: src-3bc409
+  url: https://github.com/anthropics/skills/blob/main/skills/algorithmic-art/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

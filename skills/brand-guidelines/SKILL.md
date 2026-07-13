@@ -7,9 +7,11 @@ description: Applies Anthropic's official brand colors and typography to any sor
 judge_score: null
 name: brand-guidelines
 origin: forge-996cce1c:brand-guidelines:1
-signature: kb3sjGFTe+mnqyHJQIkJgmTBOmDyhaxwZKpEW3QWcTxaFAYWL1wrL9TFUhaY+rzKaLi7M1I+pln4w1k0YCLAAQ==
+signature: iocJZkXr+z6c6MbmaBe8h+jrmXCzK0GRQ54jJVxoac6hM1PD4DrI3VP81zrUzqtO/FeXNdGrs8AUsriPQrUUAg==
 sources:
 - id: src-1120b3
+  url: https://github.com/anthropics/skills/blob/main/skills/brand-guidelines/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

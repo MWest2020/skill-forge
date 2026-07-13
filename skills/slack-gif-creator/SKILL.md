@@ -6,9 +6,11 @@ description: Knowledge and utilities for creating animated GIFs optimized for Sl
 judge_score: null
 name: slack-gif-creator
 origin: forge-996cce1c:slack-gif-creator:1
-signature: 6OoHG4mqAboMemfjVH5TT7k8h0ECRtV17PCm/80ZOT/f9ktIArqh7K1YlqM/uXEhzjtBatfumb1T7cESnsZ6DA==
+signature: bSFfeWPCRq9+uzkUM5eXgfS6XfMUbtxQsLeSTLCi/ppr9u1Hkgc+FSu68xywIuvEKGDhvDgb45nUtVjb3NBTCA==
 sources:
 - id: src-2efca6
+  url: https://github.com/anthropics/skills/blob/main/skills/slack-gif-creator/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---

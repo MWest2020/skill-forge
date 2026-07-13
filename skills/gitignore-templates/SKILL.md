@@ -8,9 +8,11 @@ description: Use this skill when creating, choosing, or contributing `.gitignore
 judge_score: null
 name: gitignore-templates
 origin: forge-996cce1c:gitignore-templates:1
-signature: qCae/ebErcHqnRu3GPzssIL6Sd5oQLo+3fmAIqxOVcq3PQNMtGTdBt7YXF53kGuz5ZFfIgpMbnztAlf4rc9lAQ==
+signature: q46d339+/+n6n/SEbuHxDAf+EeP4RCfRWubsOJ3NlAjaRbDypmRI7Ma2Pys8VIXZHwttZ9mHlWpZqVaN1z8vCw==
 sources:
 - id: src-5fb675
+  url: https://raw.githubusercontent.com/github/gitignore/main/README.md
+tags: []
 version: 1
 visibility: private
 ---

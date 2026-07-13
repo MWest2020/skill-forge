@@ -15,9 +15,11 @@ description: "Use this skill any time a spreadsheet file is the primary input or
 judge_score: null
 name: xlsx
 origin: forge-996cce1c:xlsx:1
-signature: Y6hozWiSFGDULAkxfJBmF1CfNIZApb4p0xSxwmBktMgj8tUocBpX9GEenXRlX+euYJPZSBY+W20k+EDXycsfCw==
+signature: chmwfxHe8kY2nhZ/kmpFli2gjzkUGM4BVFKZj4OaRdslr1bfqo7jT0yKB1UI22B/4Wz31q99gEKUMs8sHj4+DQ==
 sources:
 - id: src-dd316d
+  url: https://github.com/anthropics/skills/blob/main/skills/xlsx/SKILL.md
+tags: []
 version: 1
 visibility: private
 ---
