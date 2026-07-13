@@ -1,0 +1,13 @@
+{
+  "role": "builder",
+  "change": "apply-docs-contract",
+  "run_id": "builder-apply-docs-contract-20260713-072011",
+  "repo": "https://github.com/MWest2020/skill-forge.git",
+  "verdict": "ok",
+  "subtype": "success",
+  "total_cost_usd": "0.7665730000000001",
+  "num_turns": "19",
+  "claude_exit": "0",
+  "finished_at": "2026-07-13T07:22:38Z",
+  "diff_hash": "d135c586176af06b16b15ed00338e6259cd149abc7125e37db9ce9d5cd7b6d71"
+}
