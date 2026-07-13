@@ -1,0 +1,15 @@
+current_version: 2
+iterations:
+- created: '2026-07-13'
+  judge_score: null
+  kind: imported
+  reject_reason: null
+  status: superseded
+  version: 1
+- created: '2026-07-13'
+  judge_score: null
+  kind: refined
+  reject_reason: null
+  status: current
+  version: 2
+slug: brand-guidelines
