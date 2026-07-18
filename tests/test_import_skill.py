@@ -211,3 +211,37 @@ def test_import_directory_shares_run_id_for_bulk(tmp_path: Path) -> None:
     assert len(run_files) == 1  # one shared run_id
     lines = run_files[0].read_text(encoding="utf-8").splitlines()
     assert len(lines) == 2  # one event per imported skill
+
+
+_EXTERNAL_SKILL_MD = """\
+---
+name: external-skill
+description: Use this skill when Y.
+---
+
+## When to use
+...
+"""
+
+
+def test_import_file_source_url_lands_in_provenance_and_frontmatter(tmp_path: Path) -> None:
+    url = "https://github.com/owner/repo/blob/main/skills/external-skill/SKILL.md"
+    md = _write_skill_md(tmp_path / "in" / "SKILL.md", _EXTERNAL_SKILL_MD)
+    skill, sources = import_file(
+        tmp_path, md, source_url=url, license="apache-2.0", origin_tag="external/owner/repo"
+    )
+    # Provenance record: real url + license, not local-author/unknown.
+    assert sources[0].url == url
+    assert sources[0].license == "apache-2.0"
+    # Frontmatter ref carries the url; body got a ## Source section.
+    on_disk = (tmp_path / "skills" / "_draft" / "external-skill" / "SKILL.md").read_text()
+    assert skill.sources[0].url == url
+    assert "## Source" in on_disk and url in on_disk
+
+
+def test_import_file_without_source_url_stays_local_author(tmp_path: Path) -> None:
+    identity = from_seed(tmp_path / "id", b"x" * 32)
+    md = _write_skill_md(tmp_path / "in" / "SKILL.md", _EXTERNAL_SKILL_MD)
+    _, sources = import_file(tmp_path, md, identity=identity)
+    assert sources[0].url == f"local-author:{identity.instance_id}"
+    assert sources[0].license == "unknown"

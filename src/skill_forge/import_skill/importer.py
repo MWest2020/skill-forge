@@ -42,8 +42,16 @@ def import_file(
     identity: Identity | None = None,
     origin_tag: str | None = None,
     run_id: str | None = None,
+    source_url: str | None = None,
+    license: str | None = None,
 ) -> tuple[Skill, list[Source]]:
-    """Import one SKILL.md file into `{root}/skills/_draft/{slug}/`."""
+    """Import one SKILL.md file into `{root}/skills/_draft/{slug}/`.
+
+    `source_url` marks externally-authored work arriving via a local path:
+    it flows into the normalized frontmatter/`## Source` section and into
+    the provenance record (instead of `local-author:`). Without it, the
+    file is treated as locally authored.
+    """
     if not path.is_file():
         raise SkillImportError(path, "file not found")
     # Read once, parse from memory — avoids a TOCTOU window where the file
@@ -53,7 +61,7 @@ def import_file(
     except OSError as exc:
         raise SkillImportError(path, str(exc)) from exc
     try:
-        text = normalize_skill_md(raw.decode("utf-8", errors="replace"))
+        text = normalize_skill_md(raw.decode("utf-8", errors="replace"), source_url=source_url)
         parsed = storage.parse_skill_text(text, path)
     except (ValueError, ValidationError) as exc:
         raise SkillImportError(path, str(exc)) from exc
@@ -63,7 +71,9 @@ def import_file(
     if slug != parsed.name:
         parsed = parsed.model_copy(update={"name": slug})
 
-    source = _build_source(parsed, identity, sha256, origin_tag)
+    source = _build_source(
+        parsed, identity, sha256, origin_tag, source_url=source_url, license=license
+    )
     sources_file = SourcesFile(slug=slug, sources=[source], runs=[])
 
     storage.write_skill(root, parsed, draft=True, identity=identity)
@@ -122,9 +132,21 @@ def _build_source(
     identity: Identity | None,
     sha256: str,
     origin_tag: str | None,
+    *,
+    source_url: str | None = None,
+    license: str | None = None,
 ) -> Source:
     now = datetime.now(UTC)
     src_id = f"src-{sha256[:6]}"
+    if source_url is not None:
+        return Source(
+            id=src_id,
+            url=source_url,
+            license=license or "unknown",
+            fetched_at=now,
+            sha256=sha256,
+            contribution=f"imported from {origin_tag or 'unknown'}",
+        )
     if (
         parsed.origin is not None
         and identity is not None

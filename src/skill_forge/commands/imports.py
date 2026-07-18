@@ -28,6 +28,18 @@ from skill_forge.import_skill import (
 def import_command(
     path: Path,
     origin_tag: OriginTagOpt = None,
+    source_url: Annotated[
+        str | None,
+        typer.Option(
+            "--source-url",
+            help="Upstream URL for externally-authored work arriving via a local "
+            "path; lands in frontmatter, ## Source, and the provenance record.",
+        ),
+    ] = None,
+    license: Annotated[
+        str | None,
+        typer.Option("--license", help="SPDX license of the source (with --source-url)."),
+    ] = None,
     root: RootOpt = None,
     home: HomeOpt = None,
 ) -> None:
@@ -35,7 +47,10 @@ def import_command(
     base = _resolve_root(root)
     identity = _load_identity(home)
     try:
-        skill, sources = import_file(base, path, identity=identity, origin_tag=origin_tag)
+        skill, sources = import_file(
+            base, path, identity=identity, origin_tag=origin_tag,
+            source_url=source_url, license=license,
+        )
     except SkillImportError as exc:
         _die(str(exc), 1)
     typer.echo(f"Imported: {skill.name}")
