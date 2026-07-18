@@ -230,9 +230,10 @@ its roadmap section is superseded by `STRATEGY.md`) and
 
 ## Known gaps
 
-- **`refine` can time out on large skills.** The default `claude_code.timeout_s`
-  (120s) is too short for big bundled skills; bump it in `config/default.yml`.
-  (Parked.)
+- **`refine`/`judge`/`calibrate` can time out on large skills.** The default
+  `claude_code.timeout_s` (120s) is too short for big skills; set it in the
+  gitignored `config/local.yml` overlay (e.g. `claude_code: {timeout_s: 300}`)
+  — overrides merge on top of `config/default.yml`.
 
 ## Development
 
