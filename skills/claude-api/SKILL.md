@@ -17,7 +17,8 @@ signature: QaA9TWWrQDquf94hGtgm5QiFn4tASJoKSpIHF5J3In8a0YjpaNApladsaZwa7YU3pUJkJ
 sources:
 - id: src-47d678
   url: https://github.com/anthropics/skills/blob/main/skills/claude-api/SKILL.md
-tags: []
+tags:
+- harness
 version: 1
 visibility: private
 ---

@@ -14,7 +14,8 @@ signature: yCmAEZ/kQ73vxU80MRqJZ7j0CYggcmOf4paUgFvf61YTXTNQbE0jaFWFB/vQLWsEPv6WF
 sources:
 - id: src-7dbd43
   url: https://github.com/Habitat-Thinking/ai-literacy-superpowers/blob/main/ai-literacy-superpowers/skills/cost-estimation/SKILL.md
-tags: []
+tags:
+- harness
 version: 1
 visibility: private
 ---

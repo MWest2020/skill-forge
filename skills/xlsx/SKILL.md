@@ -19,7 +19,8 @@ signature: chmwfxHe8kY2nhZ/kmpFli2gjzkUGM4BVFKZj4OaRdslr1bfqo7jT0yKB1UI22B/4Wz31
 sources:
 - id: src-dd316d
   url: https://github.com/anthropics/skills/blob/main/skills/xlsx/SKILL.md
-tags: []
+tags:
+- documents
 version: 1
 visibility: private
 ---

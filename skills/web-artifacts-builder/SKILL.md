@@ -11,7 +11,8 @@ signature: L4ot+XrckQZVtSTtmiDJ7bjd/wy8lWjQ+8f+gwvAm1+cRuHqGNjbxIXGqU68hhZrVzKNp
 sources:
 - id: src-81c500
   url: https://github.com/anthropics/skills/blob/main/skills/web-artifacts-builder/SKILL.md
-tags: []
+tags:
+- design
 version: 1
 visibility: private
 ---

@@ -10,7 +10,8 @@ signature: bSFfeWPCRq9+uzkUM5eXgfS6XfMUbtxQsLeSTLCi/ppr9u1Hkgc+FSu68xywIuvEKGDhv
 sources:
 - id: src-2efca6
   url: https://github.com/anthropics/skills/blob/main/skills/slack-gif-creator/SKILL.md
-tags: []
+tags:
+- design
 version: 1
 visibility: private
 ---

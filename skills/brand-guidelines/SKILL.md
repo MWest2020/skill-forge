@@ -11,7 +11,8 @@ signature: 2KSe4Nbg7XjlApslH8iLTi0qPQ22002PVJHaOlnBB/Xtp9wCmNPqdILlmO+NdU+WlW/Q9
 sources:
 - id: src-1120b3
   url: https://github.com/anthropics/skills/blob/main/skills/brand-guidelines/SKILL.md
-tags: []
+tags:
+- design
 version: 1
 visibility: private
 ---

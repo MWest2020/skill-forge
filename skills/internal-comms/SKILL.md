@@ -12,7 +12,8 @@ signature: NRwZCljR24Q3Mkui/Or/WB5j2yzYeuoBDqCzxfjiVaJjWL97l860ee5xnvZq0mWLQTzTu
 sources:
 - id: src-067b75
   url: https://github.com/anthropics/skills/blob/main/skills/internal-comms/SKILL.md
-tags: []
+tags:
+- documents
 version: 1
 visibility: private
 ---

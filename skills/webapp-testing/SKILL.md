@@ -10,7 +10,8 @@ signature: a1bd26alXdiN26TRpN73AulHULTwGYYr2MfNafeiOfMtTr1cvZgQKene3osA5J/HzuAmd
 sources:
 - id: src-51b734
   url: https://github.com/anthropics/skills/blob/main/skills/webapp-testing/SKILL.md
-tags: []
+tags:
+- harness
 version: 1
 visibility: private
 ---

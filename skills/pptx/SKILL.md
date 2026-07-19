@@ -16,7 +16,8 @@ signature: N7qwu6ZbmUQLY9cueqoQPuz9I4Y1vWkMhbRGNekhMgyAeNjkfcFUb7NqcjIDReqsYFE5e
 sources:
 - id: src-e5b0df
   url: https://github.com/anthropics/skills/blob/main/skills/pptx/SKILL.md
-tags: []
+tags:
+- documents
 version: 1
 visibility: private
 ---

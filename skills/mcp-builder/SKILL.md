@@ -11,7 +11,8 @@ signature: 4KhABQMnmVGZxReeiPNIzI2PBtKEdKhQp8qkxlVTxbQ7dHbKAwOlu7XLe98WLATHl8o/l
 sources:
 - id: src-0f4592
   url: https://github.com/anthropics/skills/blob/main/skills/mcp-builder/SKILL.md
-tags: []
+tags:
+- harness
 version: 1
 visibility: private
 ---

@@ -10,7 +10,8 @@ signature: 90Skrm3CxfXEALMUJ1gLM6erD/g+ZEClARtHOaqYQIEH7ABjGEpw1bAWJE/Twh0WJ5CgA
 sources:
 - id: src-1122dc
   url: https://github.com/Habitat-Thinking/ai-literacy-superpowers/blob/main/ai-literacy-superpowers/skills/advocatus-diaboli/SKILL.md
-tags: []
+tags:
+- harness
 version: 1
 visibility: private
 ---

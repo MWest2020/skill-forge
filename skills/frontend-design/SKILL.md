@@ -12,7 +12,8 @@ signature: gAOZeIrxgwwUNRnwzkMSKxK49WWaRy3NZZ0g1sAP7dzqeR/HZyhiZKWDD1C6fBUdQtZ6p
 sources:
 - id: src-b81e2f
   url: https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
-tags: []
+tags:
+- design
 version: 1
 visibility: private
 ---

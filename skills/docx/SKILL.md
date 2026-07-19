@@ -17,7 +17,8 @@ signature: /+rD/rS8qDDnwWVH45E/mUtjsPAv2ZALub445V4eiLX7mP8SSwXfuMwHKro9xbZMQqahm
 sources:
 - id: src-cfbabd
   url: https://github.com/anthropics/skills/blob/main/skills/docx/SKILL.md
-tags: []
+tags:
+- documents
 version: 1
 visibility: private
 ---

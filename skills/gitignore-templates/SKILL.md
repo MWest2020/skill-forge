@@ -12,7 +12,8 @@ signature: q46d339+/+n6n/SEbuHxDAf+EeP4RCfRWubsOJ3NlAjaRbDypmRI7Ma2Pys8VIXZHwttZ
 sources:
 - id: src-5fb675
   url: https://raw.githubusercontent.com/github/gitignore/main/README.md
-tags: []
+tags:
+- harness
 version: 1
 visibility: private
 ---

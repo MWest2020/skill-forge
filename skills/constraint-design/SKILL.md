@@ -11,7 +11,8 @@ signature: JX8DMTF30AfyKhlZmC9BlljvsQBFcJE4PqBPTLDVu43LuNllerNEVBIUvO1gnAmQjaoiL
 sources:
 - id: src-ccb685
   url: https://github.com/Habitat-Thinking/ai-literacy-superpowers/blob/main/ai-literacy-superpowers/skills/constraint-design/SKILL.md
-tags: []
+tags:
+- harness
 version: 1
 visibility: private
 ---

@@ -10,7 +10,8 @@ signature: l0R2EXhJGGBu+YLojYhY7wa0yQU+1HshrfClnHtKKhb1WxlRN+osGlE6NTVWP33Ehk5Kv
 sources:
 - id: src-38442f
   url: https://github.com/Habitat-Thinking/ai-literacy-superpowers/blob/main/ai-literacy-superpowers/skills/choice-cartographer/SKILL.md
-tags: []
+tags:
+- harness
 version: 1
 visibility: private
 ---

@@ -11,7 +11,8 @@ signature: Y726mnBCyoaM3je+kxYVllav7VIVknRPgdMsVcr1m2ai68wD1im5utv1yvZGTb/bi8elC
 sources:
 - id: src-a1f288
   url: https://github.com/anthropics/skills/blob/main/skills/canvas-design/SKILL.md
-tags: []
+tags:
+- design
 version: 1
 visibility: private
 ---

@@ -13,7 +13,8 @@ signature: 8eNmWyDMZGQBEV1q+VaFJotJIraTfaJSeAqrZcpaf4o9Z0R1QjOJ5vPLp+dnjYduKHxny
 sources:
 - id: src-9f78b8
   url: https://github.com/anthropics/skills/blob/main/skills/pdf/SKILL.md
-tags: []
+tags:
+- documents
 version: 1
 visibility: private
 ---

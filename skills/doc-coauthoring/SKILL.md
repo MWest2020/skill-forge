@@ -13,7 +13,8 @@ signature: ZVlp5hM6AspBsqnaLh/ONJLOcHI4RZhOlU5GAXBZgLbhiuISmUZL0bKO9FxiquSINmyJd
 sources:
 - id: src-2e47d7
   url: https://github.com/anthropics/skills/blob/main/skills/doc-coauthoring/SKILL.md
-tags: []
+tags:
+- documents
 version: 1
 visibility: private
 ---

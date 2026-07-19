@@ -11,7 +11,8 @@ signature: V6uyWvLC/MlHlA3OdFjADz0cwRY+yzL7dRVYqtW8kqsHWoFBkd6jCZTpLsN+yfzwlDDUQ
 sources:
 - id: src-3bc409
   url: https://github.com/anthropics/skills/blob/main/skills/algorithmic-art/SKILL.md
-tags: []
+tags:
+- design
 version: 1
 visibility: private
 ---

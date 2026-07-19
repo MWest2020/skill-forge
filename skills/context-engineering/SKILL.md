@@ -10,7 +10,8 @@ signature: c2kmBIw9mqN10EgO684JR4i7q2PT9byIce+m/o6tC3eyvS+A3vGKBiFfpdbSs+qwkE9UW
 sources:
 - id: src-3fbd44
   url: https://github.com/Habitat-Thinking/ai-literacy-superpowers/blob/main/ai-literacy-superpowers/skills/context-engineering/SKILL.md
-tags: []
+tags:
+- harness
 version: 1
 visibility: private
 ---

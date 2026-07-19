@@ -11,7 +11,8 @@ signature: Aro4Pyz8Rw1C7S7+VhHSFMeCeqGdBtOzqBD+bcX33jMNpeax+JOqBCf2jMkEBA50BfFEg
 sources:
 - id: src-dcd480
   url: https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
-tags: []
+tags:
+- harness
 version: 1
 visibility: private
 ---
