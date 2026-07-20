@@ -1,0 +1,12 @@
+# Docs-gates: contract- + drift-check per PR. Implementatie in de hub
+# (MWest2020/handbook); zie handbook docs/reference/docs-gates.md.
+name: docs-gates
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+jobs:
+  gates:
+    uses: MWest2020/handbook/.github/workflows/docs-gates.yml@main
+    with:
+      code_paths: "skills/,src/,config/"
+      drift_mode: "warn"
