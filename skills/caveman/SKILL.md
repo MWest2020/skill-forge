@@ -8,9 +8,11 @@ description: 'Ultra-compressed communication mode. Cuts token usage ~75% by spea
 judge_score: null
 name: caveman
 origin: forge-996cce1c:caveman:1
-signature: i4r4X1l+PCsTAZz1vONMGJDztmIheXvyK86aqLiNftwERwYWS3yKzq0aV/22aKWEnGN/mosM374tuhdoZny2Cg==
+signature: BltVsETR42ZzJDunskioftLQaQCZ2y0ihZP3KRwijtdwwc+ReFVfRi8KTjfZehJdR6NNeQ1oBgYRSTlnT+BXDg==
 sources:
 - id: src-09ebde
+tags:
+- minimalism
 version: 1
 visibility: private
 ---
