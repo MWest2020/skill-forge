@@ -154,3 +154,25 @@ def test_gold_requires_judged(tmp_path: Path) -> None:
     result = _gold(tmp_path)
     assert result.exit_code == 1
     assert "has not been judged" in (result.stderr or result.output)
+
+
+def test_warn_gold_key_mint_and_volatile(tmp_path: Path, capsys) -> None:  # type: ignore[no-untyped-def]
+    from skill_forge.commands.trust import _warn_gold_key
+
+    _warn_gold_key(tmp_path / "g")  # nonexistent + under /tmp
+    err = capsys.readouterr().err
+    assert "NEW gold identity" in err
+    assert "volatile" in err
+
+
+def test_warn_gold_key_silent_when_existing_and_persistent(
+    tmp_path: Path, capsys, monkeypatch  # type: ignore[no-untyped-def]
+) -> None:
+    from skill_forge.commands import trust as trust_mod
+
+    home = tmp_path / "g"
+    (home / "identity").mkdir(parents=True)
+    (home / "identity" / "private_key.pem").write_text("x")
+    monkeypatch.setattr(trust_mod, "_VOLATILE_PREFIXES", ())  # treat path as persistent
+    trust_mod._warn_gold_key(home)
+    assert capsys.readouterr().err == ""

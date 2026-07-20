@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 import typer
 
@@ -22,6 +23,31 @@ from skill_forge.providers.base import LLMProviderError
 from skill_forge.storage import filesystem as storage
 from skill_forge.trust import compute_tier, gold_valid_for
 
+_VOLATILE_PREFIXES = ("/tmp", "/var/tmp", "/dev/shm")
+
+
+def _warn_gold_key(gold_home: Path) -> None:
+    """Surface the two silent gold-key failure modes before attesting: minting
+    a brand-new voucher, and a volatile home that won't survive a reboot.
+    Warn-only — never blocks."""
+    minting = not (gold_home / "identity" / "private_key.pem").is_file()
+    resolved = str(gold_home.resolve())
+    volatile = any(resolved == p or resolved.startswith(p + "/") for p in _VOLATILE_PREFIXES)
+    if minting:
+        typer.echo(
+            f"⚠ No gold key at {gold_home} — creating a NEW gold identity. "
+            "Existing attestations were signed by a different key and will not "
+            "share this one. Back it up off-box now; if lost, its attestations "
+            "can never be reissued.",
+            err=True,
+        )
+    if volatile:
+        typer.echo(
+            f"⚠ Gold key home {gold_home} is on a volatile path — it will not "
+            "survive a reboot. Point --gold-home at persistent storage and back it up.",
+            err=True,
+        )
+
 
 @app.command()
 def gold(slug: str, gold_home: GoldHomeOpt = None, root: RootOpt = None) -> None:
@@ -39,7 +65,9 @@ def gold(slug: str, gold_home: GoldHomeOpt = None, root: RootOpt = None) -> None
     if skill.origin is None:
         _die(f"{slug!r} is unsigned (no origin); cannot attest.", 1)
 
-    g = get_or_create(_resolve_gold_home(gold_home))
+    resolved_gold_home = _resolve_gold_home(gold_home)
+    _warn_gold_key(resolved_gold_home)
+    g = get_or_create(resolved_gold_home)
     attestation = GoldAttestation(
         skill_origin=skill.origin,
         version=skill.version,
