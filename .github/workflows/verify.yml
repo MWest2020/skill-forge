@@ -1,0 +1,13 @@
+# Verify-gate: draait de testsuite op elke PR (test-gate, hub docs/reference/test-gate.md).
+name: verify
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run pytest -q
