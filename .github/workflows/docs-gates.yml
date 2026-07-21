@@ -9,4 +9,4 @@ jobs:
     uses: MWest2020/handbook/.github/workflows/docs-gates.yml@main
     with:
       code_paths: "skills/,src/,config/"
-      drift_mode: "warn"
+      drift_mode: "fail"
