@@ -49,7 +49,9 @@ def sync(
         typer.echo(f"Unsynced: {removed} of {expected} skill(s) removed for target {target!r}")
         return
     try:
-        manifest = sync_target(base, target=target, target_dir=target_dir, mode=mode, tag=tag)
+        manifest, placed = sync_target(
+            base, target=target, target_dir=target_dir, mode=mode, tag=tag
+        )
     except SyncError as exc:
         typer.echo(str(exc), err=True)
         if target not in KNOWN_TARGETS:
@@ -58,7 +60,11 @@ def sync(
                 err=True,
             )
         raise typer.Exit(code=1) from exc
-    typer.echo(f"Synced: {len(manifest.entries)} skill(s) → {manifest.target_dir}")
+    total = len(manifest.entries)
+    headline = f"Synced: {placed} skill(s) → {manifest.target_dir}"
+    if placed != total:
+        headline += f"  (target now holds {total} across all skillsets)"
+    typer.echo(headline)
     typer.echo(f"  Mode: {mode}")
     typer.echo(f"  Manifest: sync/{target}.yml")
 

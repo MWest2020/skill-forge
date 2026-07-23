@@ -51,8 +51,12 @@ def sync_target(
     target_dir: Path | None = None,
     mode: str = "symlink",
     tag: str | None = None,
-) -> SyncManifest:
-    """Sync promoted skills into `target_dir`. Returns the new manifest.
+) -> tuple[SyncManifest, int]:
+    """Sync promoted skills into `target_dir`.
+
+    Returns `(manifest, placed)` where `placed` is how many skills were synced
+    *this run* — which differs from `len(manifest.entries)` under `--tag`, since
+    a tagged sync merges into the manifest and preserves other skillsets' entries.
 
     Without `tag`, syncs every promoted skill (replacing the manifest). With
     `tag`, syncs only that skillset (live skills carrying the tag) and *merges*
@@ -79,6 +83,7 @@ def sync_target(
         if not slugs:
             raise SyncError(f"no live skills tagged {tag!r}")
 
+    placed = len(slugs)
     resolved.mkdir(parents=True, exist_ok=True)
     entries: list[SyncedEntry] = []
     for slug in slugs:
@@ -103,7 +108,7 @@ def sync_target(
         entries=entries,
     )
     _write_manifest(root, target, manifest)
-    return manifest
+    return manifest, placed
 
 
 def unsync_target(root: Path, *, target: str, tag: str | None = None) -> tuple[int, int]:

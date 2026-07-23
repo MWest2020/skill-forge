@@ -43,8 +43,11 @@ def test_sync_creates_symlinks(tmp_path: Path) -> None:
     _seed_promoted(tmp_path, "alpha")
     _seed_promoted(tmp_path, "beta")
     target_dir = tmp_path / "out"
-    manifest = sync_target(tmp_path, target="claude-code", target_dir=target_dir, mode="symlink")
+    manifest, placed = sync_target(
+        tmp_path, target="claude-code", target_dir=target_dir, mode="symlink"
+    )
     assert len(manifest.entries) == 2
+    assert placed == 2
     a = target_dir / "alpha" / "SKILL.md"
     b = target_dir / "beta" / "SKILL.md"
     assert a.is_symlink() and a.resolve() == (tmp_path / "skills" / "alpha" / "SKILL.md").resolve()
@@ -96,7 +99,7 @@ def test_sync_only_promoted_not_drafts(tmp_path: Path) -> None:
     _seed_promoted(tmp_path, "live-one")
     fs.write_skill(tmp_path, _skill("draft-one"), draft=True)
     target_dir = tmp_path / "out"
-    manifest = sync_target(tmp_path, target="claude-code", target_dir=target_dir, mode="copy")
+    manifest, _ = sync_target(tmp_path, target="claude-code", target_dir=target_dir, mode="copy")
     slugs = {e.slug for e in manifest.entries}
     assert slugs == {"live-one"}
 
@@ -147,12 +150,28 @@ def test_sync_tag_mounts_only_skillset(tmp_path: Path) -> None:
     _seed_tagged(tmp_path, "sec", ["security"])
     _seed_tagged(tmp_path, "web", ["web"])
     target_dir = tmp_path / "out"
-    manifest = sync_target(
+    manifest, placed = sync_target(
         tmp_path, target="claude-code", target_dir=target_dir, mode="copy", tag="security"
     )
     assert {e.slug for e in manifest.entries} == {"sec"}
+    assert placed == 1
     assert (target_dir / "sec" / "SKILL.md").is_file()
     assert not (target_dir / "web").exists()
+
+
+def test_sync_tag_after_full_sync_reports_this_run_count(tmp_path: Path) -> None:
+    """`placed` is the this-run count, not the merged manifest total — the
+    fix for the misleading 'Synced: N' message when --tag merges."""
+    _seed_tagged(tmp_path, "sec", ["security"])
+    _seed_tagged(tmp_path, "web", ["web"])
+    target_dir = tmp_path / "out"
+    _, placed_all = sync_target(tmp_path, target="claude-code", target_dir=target_dir, mode="copy")
+    assert placed_all == 2
+    manifest, placed_tag = sync_target(
+        tmp_path, target="claude-code", target_dir=target_dir, mode="copy", tag="security"
+    )
+    assert placed_tag == 1  # only the security skillset was synced this run
+    assert len(manifest.entries) == 2  # but the web entry is preserved in the manifest
 
 
 def test_sync_tag_empty_skillset_raises(tmp_path: Path) -> None:
