@@ -20,8 +20,10 @@ rubric:
 
 # --- Promotion threshold ------------------------------------------------------
 # Skill is promoted to live when total >= total_min AND every axis >= axis_min.
+# Besluit Mark 2026-08-31: "bij twijfel niet doen. enkel wat echt boven de
+# 0.9x zit" — externe intake promoveert alleen bij een overtuigende score.
 promotion:
-  total_min: 0.75
+  total_min: 0.90
   axis_min: 0.50
 
 # --- Judge determinism --------------------------------------------------------
