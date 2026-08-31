@@ -20,10 +20,13 @@ rubric:
 
 # --- Promotion threshold ------------------------------------------------------
 # Skill is promoted to live when total >= total_min AND every axis >= axis_min.
-# Besluit Mark 2026-08-31: "bij twijfel niet doen. enkel wat echt boven de
-# 0.9x zit" — externe intake promoveert alleen bij een overtuigende score.
+# Curatie-regel Mark (2026-08-31, tweetraps): dit is de KWALITEITSBODEM.
+# Daarbovenop geldt bij promoten: vult de skill een echt gat (we hebben het
+# nog niet) -> mag, ook onder 0.90; overlapt hij met iets dat we al hebben
+# (ponytail, thinking, eigen suites) -> alleen de moeite bij >= 0.90.
+# Bij twijfel: niet doen. Het gat/overlap-oordeel is menselijk, geen tooling.
 promotion:
-  total_min: 0.90
+  total_min: 0.75
   axis_min: 0.50
 
 # --- Judge determinism --------------------------------------------------------
