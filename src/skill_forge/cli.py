@@ -218,6 +218,25 @@ def _append_blocked(log_path: Path, url: str, reason: str) -> None:
 
 
 @app.command()
+def register(
+    out: Annotated[
+        Path | None,
+        typer.Option("--out", help="Manifest-pad (default: <root>/register.yml)."),
+    ] = None,
+    root: RootOpt = None,
+) -> None:
+    """Schrijf een manifest van de live (gepromoveerde) skills — de gezaghebbende
+    catalogus die consumenten (bv. de handbook-agent-registry) tegen een
+    `skills:`-claim kunnen valideren."""
+    from skill_forge.register import write_register
+
+    base = _resolve_root(root)
+    dest = out if out is not None else base / "register.yml"
+    n = write_register(base, dest)
+    typer.echo(f"{n} live skills → {dest}")
+
+
+@app.command()
 def run(
     topic: str,
     max_candidates: Annotated[
