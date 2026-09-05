@@ -1,3 +1,8 @@
+---
+status: actief
+last_reviewed: 2026-09-04
+---
+
 # Curatiebesluit 2026-09-04 — obsidian-skills + graphify
 
 Intake van clips 1–2 sep (kepano/obsidian-skills, Graphify-Labs/graphify).
