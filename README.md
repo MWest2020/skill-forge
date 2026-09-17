@@ -246,5 +246,5 @@ uv run mypy            # types
 
 ## License
 
-[EUPL-1.2](LICENSE). Picked for sovereignty framing — `skill-forge` may go open
+[MIT](LICENSE). Permissief: gebruiken, aanpassen en doorgeven mag, met naamsvermelding. `skill-forge` may go open
 once it proves broader value.
