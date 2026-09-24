@@ -23,6 +23,7 @@ the agent tools you use — license-aware and provenance-tracked end to end.
 ## Sections
 
 - [Reference](reference/configuration.md) — configuration and the CLI surface
+- [Operating notes](reference/operating-notes.md) — judging, signing and curation gotchas
   (`config/default.yml`, provider selection, pipeline stages).
 
 Design context lives in [`openspec/project.md`](../openspec/project.md) (note:
