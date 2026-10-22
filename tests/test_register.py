@@ -56,3 +56,13 @@ def test_cli_register(tmp_path: Path) -> None:
     assert res.exit_code == 0, res.output
     assert "1 live skills" in res.output
     assert (tmp_path / "register.yml").is_file()
+
+
+def test_tools_come_from_allowed_tools(tmp_path: Path) -> None:
+    with_tools = _skill("reader").model_copy(
+        update={"allowed_tools": ["Bash(python3 agents/readshell.py:*)"]})
+    fs.write_skill(tmp_path, with_tools, draft=False)
+    fs.write_skill(tmp_path, _skill("plain"), draft=False)
+    by = {e["slug"]: e for e in build_register(tmp_path)["skills"]}
+    assert by["reader"]["tools"] == ["Bash(python3 agents/readshell.py:*)"]
+    assert by["plain"]["tools"] == []
