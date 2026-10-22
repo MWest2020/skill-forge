@@ -34,6 +34,9 @@ def build_register(root: Path) -> dict:
             "slug": skill.name,
             "description": _one_line(skill.description),
             "origin": skill.origin,
+            # What the skill needs beyond every agent's base tools; the handbook
+            # derives a role's tools from its skills (change register-carries-tools).
+            "tools": list(skill.allowed_tools or []),
         })
     entries.sort(key=lambda e: e["slug"])
     return {"version": MANIFEST_VERSION, "generator": "skill-forge", "skills": entries}
