@@ -135,8 +135,8 @@ skills:
   origin: forge-996cce1c:pptx:1
   tools: []
 - slug: read-state
-  description: Look up the live state of the work on Mark's GitHub repositories (commits, branches, open OpenSpec changes, PRs, issues, a PR's checks) through ratatoskr's read shell instead of guessing or asking. Use before saying what is open, blocked, merged or failing.
-  origin: forge-996cce1c:read-state:1
+  description: Look up the live state of the work on Mark's GitHub repositories (commits, branches, open OpenSpec changes, PRs, issues, a PR's checks, an issue's comments) through ratatoskr's read shell instead of guessing or asking. Use before saying what is open, blocked, merged or failing.
+  origin: forge-996cce1c:read-state:2
   tools:
   - Bash(python3 agents/readshell.py:*)
 - slug: seo

@@ -3,27 +3,27 @@ allowed-tools:
 - Bash(python3 agents/readshell.py:*)
 created: '2026-10-22'
 description: Look up the live state of the work on Mark's GitHub repositories (commits,
-  branches, open OpenSpec changes, PRs, issues, a PR's checks) through ratatoskr's
-  read shell instead of guessing or asking. Use before saying what is open, blocked,
-  merged or failing.
+  branches, open OpenSpec changes, PRs, issues, a PR's checks, an issue's comments)
+  through ratatoskr's read shell instead of guessing or asking. Use before saying
+  what is open, blocked, merged or failing.
 judge_score: null
 name: read-state
-origin: forge-996cce1c:read-state:1
-signature: CUrYBWfZVKkNilNVzCvyaFXWMkjXra10LcI+n98dYKaY4/mh3Rtng8SItC0t3tIcawJHQA4jbs8sqdN2XEsJAw==
+origin: forge-996cce1c:read-state:2
+signature: dI2LGdiOr+5NTmiVZBuVlzw4Nn8zRfy5cbXghQH46EG0r2BIS3+t7S8uzFnVMO3YJ4RDp5FVtXvtCjiEmikMAg==
 sources:
 - id: src-d26804
   url: https://github.com/MWest2020/ratatoskr/blob/main/docs/how-to/read-shell.md
 tags:
 - ratatoskr
 - read-only
-version: 1
+version: 2
 visibility: private
 ---
 
 # Read the state of the work
 
 You have one Bash command, and only this one: ratatoskr's read shell. It answers
-six read-only questions about a repository of `MWest2020`. Give the repository
+seven read-only questions about a repository of `MWest2020`. Give the repository
 name only (`wordsworth`, not `MWest2020/wordsworth`).
 
     python3 agents/readshell.py log <repo> [n]        # last n commits on main (default 15)
@@ -32,6 +32,7 @@ name only (`wordsworth`, not `MWest2020/wordsworth`).
     python3 agents/readshell.py prs <repo> [n]        # open pull requests
     python3 agents/readshell.py issues <repo> [label] # open issues, e.g. label agent-work
     python3 agents/readshell.py checks <repo> <pr>    # the checks of one PR
+    python3 agents/readshell.py comments <repo> <n> [k]  # the last k comments on issue or PR n (default 4)
 
 The command runs from your working directory, which is the ratatoskr listener's
 tree, so `agents/readshell.py` is right as written. If the answer is "No such
@@ -44,6 +45,9 @@ file", say that the read shell is unavailable and do not guess the state.
   from memory or from what someone said in the channel.
 - **When a build or a merge is mentioned.** Read the issue or the PR's checks
   rather than assuming the outcome.
+- **When a build failed.** The roles' PASS/FAIL verdicts and their findings
+  are comments on the build issue: `comments <repo> <issue>` shows them. Read
+  the finding before you decide between a rebuild, an amend and asking Mark.
 
 ## Example
 
