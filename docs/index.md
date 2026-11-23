@@ -24,6 +24,7 @@ the agent tools you use — license-aware and provenance-tracked end to end.
 
 - [Reference](reference/configuration.md) — configuration and the CLI surface
 - [Operating notes](reference/operating-notes.md) — judging, signing and curation gotchas
+- [Curation decision: mail-mark](explanation/2026-11-23-curation-mail-mark.md) — the skill that lets a chat agent mail Mark, and only him
   (`config/default.yml`, provider selection, pipeline stages).
 
 Design context lives in [`openspec/project.md`](../openspec/project.md) (note:
