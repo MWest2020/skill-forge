@@ -269,3 +269,32 @@ def test_cli_sync_unknown_target(tmp_path: Path) -> None:
     result = runner.invoke(app, ["sync", "emacs", "--root", str(tmp_path)])
     assert result.exit_code == 1
     assert "unknown target" in (result.stderr or result.output)
+
+
+# --- listener-only skills (change sync-skips-listener-only) -------------------
+
+
+def _seed_tagged(tmp_path: Path, slug: str, tags: list[str]) -> None:
+    skill = _skill(slug).model_copy(update={"tags": tags})
+    fs.write_skill(tmp_path, skill, draft=False)
+
+
+def test_sync_never_mounts_a_listener_only_skill(tmp_path: Path) -> None:
+    _seed_promoted(tmp_path, "alpha")
+    _seed_tagged(tmp_path, "mail-mark", ["listener-only", "ratatoskr"])
+    target_dir = tmp_path / "out"
+    manifest, placed = sync_target(tmp_path, target="claude-code", target_dir=target_dir)
+    assert [e.slug for e in manifest.entries] == ["alpha"]
+    assert placed == 1
+    assert not (target_dir / "mail-mark").exists()
+
+
+def test_sync_by_tag_skips_listener_only_skills_too(tmp_path: Path) -> None:
+    _seed_tagged(tmp_path, "read-state", ["ratatoskr"])
+    _seed_tagged(tmp_path, "mail-mark", ["listener-only", "ratatoskr"])
+    target_dir = tmp_path / "out"
+    manifest, placed = sync_target(
+        tmp_path, target="claude-code", target_dir=target_dir, tag="ratatoskr")
+    assert [e.slug for e in manifest.entries] == ["read-state"]
+    with pytest.raises(SyncError):
+        sync_target(tmp_path, target="claude-code", target_dir=target_dir, tag="listener-only")

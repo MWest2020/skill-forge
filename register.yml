@@ -83,11 +83,10 @@ skills:
   origin: forge-996cce1c:internal-comms:1
   tools: []
 - slug: mail-mark
-  description: Send Mark a mail, to mark@westerweel.work and nobody else, through the claude.ai Gmail connector (send_message, or reply in a thread of his). Use when Mark asks in the chat for a mail ("mail me the open proposals", "stuur me dat even"), and only then.
-  origin: forge-996cce1c:mail-mark:1
+  description: Send Mark a mail, to mark@westerweel.work and nobody else, through the claude.ai Gmail connector's send_message, from a Ratatoskr chat turn only (where the mail guard runs). Use when Mark asks in the chat for a mail ("mail me the open proposals", "stuur me dat even"), and only then.
+  origin: forge-996cce1c:mail-mark:2
   tools:
   - mcp__claude_ai_Gmail__send_message
-  - mcp__claude_ai_Gmail__reply
 - slug: maintainability-review
   description: 'Code review focused exclusively on maintainability and refactorability — the axis that correctness review and security review miss. Finds what makes future change expensive: unclear names, long functions, hidden coupling, mixed responsibilities, duplicated logic, untestable code, and change-amplification (one logical change forced across many sites). Every finding is one line: location, the smell, the behavior-preserving refactor move. Use when the user says "review for maintainability", "is this maintainable", "refactor review", "what should I refactor", "find code smells", "how hard is this to change", or invokes /maintainability-review. Behavior-preserving only — it proposes refactors, not bug fixes or feature changes.'
   origin: forge-996cce1c:maintainability-review:1

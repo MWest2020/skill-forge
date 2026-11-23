@@ -44,6 +44,10 @@ class SyncManifest(BaseModel):
     entries: list[SyncedEntry]
 
 
+# Skills with this tag are never synced (change sync-skips-listener-only).
+LISTENER_ONLY = "listener-only"
+
+
 def sync_target(
     root: Path,
     *,
@@ -82,6 +86,14 @@ def sync_target(
         slugs = live_skills_with_tag(root, tag)
         if not slugs:
             raise SyncError(f"no live skills tagged {tag!r}")
+
+    # A skill tagged LISTENER_ONLY pre-approves tools that are safe only where
+    # its consumer guards them (mail-mark: ratatoskr's mail guard). It is never
+    # mounted into a tool's user-level skills directory.
+    held = set(live_skills_with_tag(root, LISTENER_ONLY))
+    slugs = [slug for slug in slugs if slug not in held]
+    if tag is not None and not slugs:
+        raise SyncError(f"no live skills tagged {tag!r} that may be synced")
 
     placed = len(slugs)
     resolved.mkdir(parents=True, exist_ok=True)
