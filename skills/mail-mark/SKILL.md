@@ -9,7 +9,7 @@ description: Send Mark a mail, to mark@westerweel.work and nobody else, through 
 judge_score: null
 name: mail-mark
 origin: forge-996cce1c:mail-mark:2
-signature: 4M+B64sYfdL8bQXJ5fsy9Rh1GHykfxqRS1E6WhKH7LEpO4sVhCP6mxyaFk5ud4hkTHLWxf0lrANCJC9TOV/SAQ==
+signature: PO0fd/ZyWAMW1Fo1mJl/0K75xMgZJ5Ce+iJLek8aWo7IF8C9NIvD9g0VUGjVrKxyN9dCjI927c3aA98QJeQlDw==
 sources:
 - id: src-3d1020
   url: https://github.com/MWest2020/ratatoskr/blob/main/docs/how-to/mail-from-chat.md
@@ -72,8 +72,9 @@ only available from the chat.
 
 To continue a thread with Mark, use the same `send_message` call with the same
 `to` and add `replyThreadId`: the thread id, from Mark or from the `threadId`
-of your own earlier send. Prefer it to `replyToMessageId`, which needs the
-connector's read access to resolve the message.
+of your own earlier send. Do not use `replyToMessageId`: it is refused, because
+it needs the connector's read access and what it does cannot be checked
+without sending.
 There is no reply tool: the connector's `reply` may copy the thread's other
 recipients, so it is refused.
 
