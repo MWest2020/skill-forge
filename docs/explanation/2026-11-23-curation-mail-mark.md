@@ -38,7 +38,8 @@ two problems with it:
   connector tool other than this one.
 
 Version 2 was re-signed by this instance (`forge-996cce1c:mail-mark:2`,
-verifies). It was then judged four times, 3× each with the per-axis median
+verifies). It was then judged four times (and once more after the
+re-review, below), 3× each with the per-axis median
 (rubric v2). Each round's one warning was fixed before the next:
 
 1. **0.92**: one warning, no concrete signal for "a Ratatoskr chat turn" and
@@ -49,6 +50,10 @@ verifies). It was then judged four times, 3× each with the per-axis median
 3. **0.93**: one warning, `replyThreadId` should be the default, and "say in
    the channel" needed explaining.
 4. **0.92**, with no warnings.
+5. After the re-review, threading is `replyThreadId` only: `replyToMessageId`
+   needs the connector's read access and cannot be checked without sending,
+   so the guard refuses it and the skill says so. Re-signed and judged again:
+   **0.93**, with no warnings.
 
 ## What the skill does not carry
 
